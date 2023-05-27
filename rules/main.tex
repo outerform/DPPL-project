@@ -1,0 +1,135 @@
+% a new empty document
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{semantic}
+
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{booktabs}
+\usepackage{bookmark}
+\usepackage{array}
+\usepackage{multirow}
+% \usepackage{xfrac,unicode-math}
+\def\lock {\mathbb{L}}
+
+\title {Typing Rules and Evaluation rules}
+\author{L}
+
+
+\begin{document}
+% \fontname\font
+\maketitle
+
+\section{Fork}
+
+\begin{align*}
+    \tag {\textsc{T-Fork}}
+    \inference[]{\Gamma |\lock\vdash t:~T}{ fork \{~t~\} :~Thread~T} 
+    \\
+    \\
+    \tag {\textsc{E-Fork}}
+    \inference[]{t_1->t_1'}{fork \{~t_1~\} -> fork \{~t_1'~\}}
+    \\
+    \\
+    \tag {\textsc{T-Wait}}
+    \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait \{~t~\} :~T}
+    \\
+    \\
+    \tag {\textsc{E-Wait}}
+    \inference[]{t->t'}{wait \{~t~\} -> wait \{~t'~\}}
+    \\
+    \\
+    \tag {\textsc{T-WaitFork}}
+    \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait \{~fork \{~t~\}~\} :~T}
+    \\
+    \\
+    \tag {\textsc{E-Fork}}
+    \inference[]{t_1->t_1'}{wait \{~fork \{~t_1~\}~\} -> wait \{~fork \{~t_1'~\}~\}}
+    \\
+    \\
+    \tag {\textsc{E-WaitFork}}
+    wait \{~fork \{~v~\}~\} -> v
+    \\
+\end{align*}
+
+\section{Mutex}
+\begin{align*}
+    \tag {\textsc{T-Mutex}}
+    \inference[]{
+        %X\notin \Gamma  
+        }{\Gamma|\lock \vdash mutex<X> :~Mutex~X}
+    \\
+    \\
+    \tag {\textsc{T-RefMutex}}
+    \inference[]{\Gamma|\lock \vdash x :~Mutex~X & \Gamma \vdash v:T}{ref<x> v:~Ref<X>T}
+    \\
+    \\
+    \tag {\textsc{E-RefMutex}}
+    \inference[]{t_1->t_1'}{ref<x> t_1 -> ref<x> t_1'}
+    \\
+    \\
+    \tag {\textsc{T-DerefMutex}}
+    \inference[]{\Gamma|\lock \vdash t_1:Ref<X>T & X\in \lock}{\Gamma|\lock\vdash !t_1:T}
+    \\
+    \\
+    \tag {\textsc{T-AssignMutex}}
+    \inference[]{\Gamma|\lock \vdash t_1:Ref<X>T & \Gamma \vdash t_2:T & X\in \lock}{\Gamma|\lock\vdash t_1 := t_2:Unit}
+    \\
+    \\
+    \tag {\textsc{E-RefMutex}}
+    \inference[]{t_1|\mu->t_1'|\mu '}{ref<x>~t_1|\mu -> ref<x>~t_1|\mu}
+    \\
+    \\
+    \tag {\textsc{E-RefV}}
+    \inference[]{l\notin dom(\mu)}{ref<x>~v|\mu -> l|\mu,l\mapsto v}
+    \\
+    \\
+    \tag {\textsc{E-Deref}}
+    \inference[]{t_1|\mu->t_1'|\mu '}{!t_1|\mu -> !t_1'|\mu}
+    \\
+    \\
+    \tag {\textsc{E-DerefLoc}}
+    \inference[]{\mu(l)=v}{!l|\mu -> v|\mu}
+    \\
+    \\
+    \tag {\textsc{E-Assign1}}
+    \inference[]{t_1|\mu->t_1'|\mu '}{t_1:=t_2|\mu -> t_1':=t_2|\mu}
+\end{align*}
+\begin{align*}
+    \tag {\textsc{E-Assign2}}
+    \inference[]{t_2|\mu->t_2'|\mu '}{v:=t_2|\mu -> v:=t_2'|\mu}
+    \\
+    \\
+    \tag {\textsc{E-AssignV}}
+    \inference[]{\mu(l)=v}{l:=v|\mu -> unit|\mu,l\mapsto v}
+\end{align*}
+
+\section{Lock}
+\begin{align*}
+\tag{\textsc{T-Lock}}
+\inference[]{tail(\lock)<_{lex}X & \Gamma|\lock \vdash t_1:Mutex~X 
+& \Gamma|(\lock,X) \vdash t_2:T}{lock~t_1~t_2:T}
+\\
+\\
+\tag{\textsc{E-Lock1}}
+\inference[]{t_1->t_1'}{lock~t_1~t_2 -> lock~t_1'~t_2}
+\\
+\\
+\tag{\textsc{E-Lock2}}
+\inference[]{t_2->t_2'}{lock~v_1~t_2 -> lock~v_1~t_2'}
+\\
+\\
+\tag{\textsc{E-LockV}}lock~v_1~v_2 -> v_2
+\end{align*}
+
+\end{document}

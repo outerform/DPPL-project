@@ -1,3 +1,0 @@
-true: bin_annot, debug, package(threads), package(unix), thread
-
-<src>: include
