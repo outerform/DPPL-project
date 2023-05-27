@@ -42,23 +42,23 @@
     \\
     \\
     \tag {\textsc{T-Wait}}
-    \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait \{~t~\} :~T}
+    \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait ~t~ :~T}
     \\
     \\
     \tag {\textsc{E-Wait}}
-    \inference[]{t->t'}{wait \{~t~\} -> wait \{~t'~\}}
+    \inference[]{t->t'}{wait ~t~ -> wait ~t'~}
     \\
     \\
     \tag {\textsc{T-WaitFork}}
-    \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait \{~fork \{~t~\}~\} :~T}
+    \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait ~t~ :~T}
     \\
     \\
     \tag {\textsc{E-Fork}}
-    \inference[]{t_1->t_1'}{wait \{~fork \{~t_1~\}~\} -> wait \{~fork \{~t_1'~\}~\}}
+    \inference[]{t_1->t_1'}{wait~t_1 -> wait~t_1'}
     \\
     \\
     \tag {\textsc{E-WaitFork}}
-    wait \{~fork \{~v~\}~\} -> v
+    wait ~fork \{~v~\}~ -> v
     \\
 \end{align*}
 
