@@ -4,6 +4,19 @@ open Support.Pervasive
 open Support.Error
 
 (* Data type definitions *)
+
+type mutexset
+val appendmutex : string -> mutexset -> mutexset
+val newmutexset : string -> mutexset
+val emptymutexset: mutexset
+val mapmutexset : (string -> 'a) -> mutexset -> 'a list
+val intermutexset : mutexset -> mutexset -> mutexset
+val unionmutexset : mutexset -> mutexset -> mutexset
+val foldmutexset : (string -> 'a -> 'a) -> mutexset -> 'a -> 'a
+val submutexset : mutexset -> mutexset -> bool
+val mutexsetequal : mutexset -> mutexset -> bool
+val existmutex : string -> mutexset -> bool
+
 type ty =
     TyBot
   | TyTop
@@ -20,6 +33,8 @@ type ty =
   | TySink of ty
   | TyFloat
   | TyNat
+  | TyThread of ty
+  | TyMutex of mutexset
 
 type term =
     TmVar of info * int * int
@@ -48,6 +63,12 @@ type term =
   | TmPred of info * term
   | TmIsZero of info * term
   | TmInert of info * ty
+  | TmThread of info * term
+  | TmMutex of info * mutexset
+  | TmFork of info * term
+  | TmWait of info * term
+  | TmAcquire of info * term * term
+  | TmRefMutex of info * term * term
 
 type binding =
     NameBind 

@@ -5,6 +5,27 @@ open Support.Pervasive
 (* ---------------------------------------------------------------------- *)
 (* Datatypes *)
 
+module StringSet = Set.Make(String)
+type mutexset = StringSet.t
+
+let appendmutex x xs =
+  if StringSet.mem x xs then raise Parsing.Parse_error
+  else StringSet.add x xs
+let emptymutexset = StringSet.empty
+let newmutexset x = StringSet.singleton x
+let printmutexset s =
+  let s = StringSet.elements s in
+  print_string ("<" ^ List.hd s);
+  List.iter (fun a -> print_string ("," ^ a)) (List.tl s);
+  print_string ">";;
+let mapmutexset f ls = List.map f (StringSet.elements ls)
+let intermutexset = StringSet.inter
+let unionmutexset = StringSet.union
+let foldmutexset f ls i = StringSet.fold f ls i
+let submutexset = StringSet.subset
+let mutexsetequal = StringSet.equal
+let existmutex = StringSet.mem
+
 type ty =
     TyBot
   | TyTop
@@ -21,6 +42,8 @@ type ty =
   | TySink of ty
   | TyFloat
   | TyNat
+  | TyThread of ty
+  | TyMutex of mutexset
 
 type term =
     TmVar of info * int * int
@@ -49,6 +72,12 @@ type term =
   | TmPred of info * term
   | TmIsZero of info * term
   | TmInert of info * ty
+  | TmThread of info * term
+  | TmMutex of info * mutexset
+  | TmFork of info * term
+  | TmWait of info * term
+  | TmAcquire of info * term * term
+  | TmRefMutex of info * term * term
 
 type binding =
     NameBind 
@@ -122,6 +151,8 @@ let tymap onvar c tyT =
   | TySink(tyT1) -> TySink(walk c tyT1)
   | TyVar(x,n) -> onvar c x n
   | TyNat -> TyNat
+  | TyThread(tyT1) -> TyThread(walk c tyT1)
+  | TyMutex(s) as tyT -> tyT
   in walk c tyT
 
 let tmmap onvar ontype c t = 
@@ -157,6 +188,12 @@ let tmmap onvar ontype c t =
   | TmPred(fi,t1)   -> TmPred(fi, walk c t1)
   | TmIsZero(fi,t1) -> TmIsZero(fi, walk c t1)
   | TmInert(fi,tyT) -> TmInert(fi,ontype c tyT)
+  | TmThread(fi,t1) -> TmThread(fi, walk c t1)
+  | TmMutex(fi,t1) as t -> t
+  | TmFork(fi,t1) -> TmFork(fi, walk c t1)
+  | TmWait(fi,t1) -> TmWait(fi, walk c t1)
+  | TmAcquire(fi,t1,t2) -> TmAcquire(fi, walk c t1, walk c t2)
+  | TmRefMutex(fi,t1,t2) -> TmRefMutex(fi, walk c t1, walk c t2)
   in walk c t
 
 let typeShiftAbove d c tyT =
@@ -263,7 +300,13 @@ let tmInfo t = match t with
   | TmSucc(fi,_) -> fi
   | TmPred(fi,_) -> fi
   | TmIsZero(fi,_) -> fi
-  | TmInert(fi,_) -> fi 
+  | TmInert(fi,_) -> fi
+  | TmThread(fi,_) -> fi
+  | TmMutex(fi,_) -> fi
+  | TmFork(fi,_) -> fi
+  | TmWait(fi,_) -> fi
+  | TmAcquire(fi,_,_) -> fi
+  | TmRefMutex(fi,_,_) -> fi
 
 (* ---------------------------------------------------------------------- *)
 (* Printing *)
@@ -347,6 +390,8 @@ and printty_AType outer ctx tyT = match tyT with
             ^ (List.fold_left (fun s (x,_) -> s ^ " " ^ x) "" ctx)
             ^ " }]")
   | TyNat -> pr "Nat"
+  | TyMutex(s) -> pr "Mutex"; printmutexset s
+  | TyThread(t) -> pr "Thread"
   | tyT -> pr "("; printty_Type outer ctx tyT; pr ")"
 
 let printty ctx tyT = printty_Type true ctx tyT 
@@ -401,6 +446,25 @@ let rec printtm_Term outer ctx t = match t with
        pr "else ";
        printtm_Term false ctx t3;
        cbox()
+  | TmFork(fi, t1) ->
+       obox0();
+       pr "fork {";
+       printtm_Term false ctx t1;
+       pr "}";
+       cbox()
+  | TmWait(fi, t1) ->
+       obox0();
+       pr "wait {";
+       printtm_Term false ctx t1;
+       pr "}";
+       cbox()
+  | TmAcquire(fi, t1, t2) ->
+       obox0();
+       pr "acquire ";
+       printtm_Term false ctx t1;
+       print_space();
+       printtm_Term false ctx t2;
+       cbox()
   | t -> printtm_AppTerm outer ctx t
 
 and printtm_AppTerm outer ctx t = match t with
@@ -410,11 +474,6 @@ and printtm_AppTerm outer ctx t = match t with
       print_space();
       printtm_ATerm false ctx t2;
       cbox()
-  | TmRef(fi, t1) ->
-       obox();
-       pr "ref ";
-       printtm_ATerm false ctx t1;
-       cbox()
   | TmDeref(fi, t1) ->
        obox();
        pr "!";
@@ -427,6 +486,15 @@ and printtm_AppTerm outer ctx t = match t with
        pr "pred "; printtm_ATerm false ctx t1
   | TmIsZero(_,t1) ->
        pr "iszero "; printtm_ATerm false ctx t1
+  | TmRefMutex(fi, t1, t2) ->
+       obox();
+       pr "ref ";
+       printtm_ATerm false ctx t1;
+       print_space();
+       printtm_AppTerm false ctx t2;
+       cbox()
+    | TmRef(fi, t1) ->
+       printtm_ATerm false ctx t1
   | t -> printtm_PathTerm outer ctx t
 
 and printtm_AscribeTerm outer ctx t = match t with
@@ -485,6 +553,12 @@ and printtm_ATerm outer ctx t = match t with
        | _ -> (pr "(succ "; printtm_ATerm false ctx t1; pr ")")
      in f 1 t1
   | TmInert(_,tyT) -> pr "inert["; printty_Type false ctx tyT; pr "]"
+  | TmThread(_,t1) ->
+      obox0();
+      pr ("thread {"); printtm_ATerm false ctx t1; pr ("}");
+      cbox()
+  | TmMutex(_,t1) ->
+      printmutexset t1;
   | t -> pr "("; printtm_Term outer ctx t; pr ")"
 
 let printtm ctx t = printtm_Term true ctx t 

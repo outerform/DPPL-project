@@ -101,6 +101,15 @@ open Syntax
 %token <Support.Error.info> USCORE
 %token <Support.Error.info> VBAR
 
+/* New tokens */
+%token <Support.Error.info> FORK
+%token <Support.Error.info> WAIT
+%token <Support.Error.info> MUTEX
+%token <Support.Error.info> ACQUIRE
+
+%token <Support.Error.info> MMUTEX
+%token <Support.Error.info> TTHREAD
+
 /* ---------------------------------------------------------------------- */
 /* The starting production of the generated parser is the syntactic class
    toplevel.  The type that is returned when a toplevel is recognized is
@@ -162,6 +171,8 @@ Type :
       { fun ctx -> TySource($2 ctx) }
   | SSINK AType
       { fun ctx -> TySink($2 ctx) }
+  | TTHREAD AType
+      { fun ctx -> TyThread($2 ctx) }
 
 /* Atomic types are those that never need extra parentheses */
 AType :
@@ -229,6 +240,12 @@ Term :
                 $8 ctx1) }
   | IF Term THEN Term ELSE Term
       { fun ctx -> TmIf($1, $2 ctx, $4 ctx, $6 ctx) }
+  | FORK LCURLY Term RCURLY
+      { fun ctx -> TmFork($1, $3 ctx) }
+  | WAIT LCURLY Term RCURLY
+      { fun ctx -> TmWait($1, $3 ctx) }
+  | ACQUIRE Term Term
+      { fun ctx -> TmAcquire($1, $2 ctx, $3 ctx) }
 
 AppTerm :
     PathTerm
@@ -238,8 +255,8 @@ AppTerm :
           let e1 = $1 ctx in
           let e2 = $2 ctx in
           TmApp(tmInfo e1,e1,e2) }
-  | REF PathTerm
-      { fun ctx -> TmRef($1, $2 ctx) }
+  | REF PathTerm PathTerm
+      { fun ctx -> TmRefMutex($1, $2 ctx, TmRef($1, $3 ctx)) }
   | BANG PathTerm 
       { fun ctx -> TmDeref($1, $2 ctx) }
   | FIX PathTerm
@@ -326,6 +343,10 @@ ATerm :
           in f $1.v }
   | INERT LSQUARE Type RSQUARE 
       { fun ctx -> TmInert($1, $3 ctx) }
+  | LT MutexFields GT
+      { fun ctx -> TmMutex($1, $2) }
+  | MUTEX LT MutexFields GT
+      { fun ctx -> TmMutex($1, $3) }
 
 Cases :
     Case
@@ -363,5 +384,10 @@ TyBinder :
   | EQ Type
       { fun ctx -> TyAbbBind($2 ctx) }
 
+MutexFields :
+    UCID
+      { newmutexset $1.v }
+  | UCID COMMA MutexFields
+      { appendmutex $1.v $3 }
 
 /*   */

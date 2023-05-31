@@ -21,6 +21,8 @@ let rec isval ctx t = match t with
   | t when isnumericval ctx t  -> true
   | TmAbs(_,_,_,_) -> true
   | TmRecord(_,fields) -> List.for_all (fun (l,ti) -> isval ctx ti) fields
+  | TmThread(_,_) -> true
+  | TmMutex(_,_) -> true
   | _ -> false
 
 type store = term list  
@@ -152,6 +154,26 @@ let rec eval1 ctx store t = match t with
   | TmIsZero(fi,t1) ->
       let t1',store' = eval1 ctx store t1 in
       TmIsZero(fi, t1'), store'
+  | TmFork(fi,v1) when (isval ctx v1)->
+      TmThread(fi, v1), store
+  | TmFork(fi,t1) ->
+      let t1',store' = eval1 ctx store t1 in
+      TmFork(fi, t1'), store'
+  | TmWait(_,TmThread(_,v1)) ->
+      v1, store
+  | TmWait(fi,t1) ->
+      let t1',store' = eval1 ctx store t1 in
+      TmWait(fi, t1'), store'
+  | TmAcquire(_,TmMutex(_,_),v2) when isval ctx v2 ->
+      v2, store
+  | TmAcquire(fi,v1,t2) when isval ctx v1 ->
+      let t2',store' = eval1 ctx store t2 in
+      TmAcquire(fi, v1, t2'), store'
+  | TmAcquire(fi,t1,t2) ->
+      let t1',store' = eval1 ctx store t1 in
+      TmAcquire(fi, t1', t2), store'
+  | TmRefMutex(fi,_,t1) ->
+      t1, store
   | _ -> 
       raise NoRuleApplies
 
@@ -482,3 +504,13 @@ let rec typeof ctx t =
   | TmIsZero(fi,t1) ->
       if subtype ctx (typeof ctx t1) TyNat then TyBool
       else error fi "argument of iszero is not a number"
+  | TmFork(fi,t1) ->
+      typeof ctx t1
+  | TmWait(fi,t1) ->
+      typeof ctx t1
+  | TmAcquire(fi,t1,t2) ->
+      typeof ctx t2
+  | TmRefMutex(fi,_,t1) ->
+      typeof ctx t1
+  | TmThread(fi,t1) ->
+      typeof ctx t1

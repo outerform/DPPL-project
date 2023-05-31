@@ -43,7 +43,16 @@ let reservedWords = [
   ("inert", fun i -> Parser.INERT i);
   ("type", fun i -> Parser.TYPE i);
   ("Nat", fun i -> Parser.NAT i);
-  
+
+  (* New Keywords *)
+  ("fork", fun i -> Parser.FORK i);
+  ("wait", fun i -> Parser.WAIT i);
+  ("mutex", fun i -> Parser.MUTEX i);
+  ("acquire", fun i -> Parser.ACQUIRE i);
+
+  ("MUTEX", fun i -> Parser.MMUTEX i);
+  ("THREAD", fun i -> Parser.TTHREAD i);
+
   (* Symbols *)
   ("_", fun i -> Parser.USCORE i);
   ("'", fun i -> Parser.APOSTROPHE i);
