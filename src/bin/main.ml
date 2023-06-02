@@ -110,8 +110,9 @@ let main () =
 
 let () = set_max_boxes 1000
 let () = set_margin 67
+(* below function has problem *)
 let res = 
-  Printexc.catch (fun () -> 
+  Printexc.catch (fun () ->   
     try main();0 
     with Exit x -> x) 
   ()

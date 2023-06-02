@@ -7,7 +7,7 @@ open Support.Error
 type lockset
 val appendlock : string -> lockset -> lockset
 val maxlock: lockset -> string
-val newlockset : string -> lockset
+val newlockset: string -> lockset
 val emptylockset: lockset
 val maplockset : (string -> 'a) -> lockset -> 'a list
 val interlockset : lockset -> lockset -> lockset
@@ -16,6 +16,7 @@ val foldlockset : (string -> 'a -> 'a) -> lockset -> 'a -> 'a
 val sublockset : lockset -> lockset -> bool
 val locksetequal : lockset -> lockset -> bool
 val existlock : string -> lockset -> bool
+val sizelockset: lockset -> int
 
 (* Data type definitions *)
 type ty =

@@ -165,11 +165,14 @@ let rec eval1 ctx store t = match t with
       let t1',store' = eval1 ctx store t1 in
       TmWait(fi, t1'), store'
   | TmAcquire(_,TmMutex(_,_),v2) when isval ctx v2 ->
+      pr "gogoggo";
       v2, store
   | TmAcquire(fi,v1,t2) when isval ctx v1 ->
+    pr "???111";
       let t2',store' = eval1 ctx store t2 in
       TmAcquire(fi, v1, t2'), store'
   | TmAcquire(fi,t1,t2) ->
+    pr "???";
       let t1',store' = eval1 ctx store t1 in
       TmAcquire(fi, t1', t2), store'
   | TmRefMutex(fi,_,t1) ->
@@ -687,8 +690,8 @@ let rec typeof (ctx:context) (lst:lockset) (t:term) =
         | TyBot -> TyBot
         | TySource(tyT1) -> tyT1
         (* add *)
-        | TyRefMutex(li1,tyT1) -> if existlock li1 lst then tyT1 else error fi "acquire lock before dereference"
-        | TySourceMutex(li1,tyT1) -> if existlock li1 lst then tyT1 else error fi "acquire lock before dereference"
+        | TyRefMutex(li1,tyT1) -> if existlock li1 lst then tyT1 else error fi "lock isn't acquired before dereference"
+        | TySourceMutex(li1,tyT1) -> if existlock li1 lst then tyT1 else error fi "lock isn't acquired before dereference"
         | _ -> error fi "argument of ! is not a Ref or Source")
   | TmAssign(fi,t1,t2) ->
       (match simplifyty ctx (typeof ctx lst t1) with
@@ -709,7 +712,7 @@ let rec typeof (ctx:context) (lst:lockset) (t:term) =
               if existlock li1 lst then
                 TyUnit
               else 
-                error fi "acquire lock before assignment"
+                error fi "lock isn't acquire before assignment"
             else
               error fi "arguments of := are incompatible"
         | TySinkMutex(li1, tyT1) ->
@@ -717,7 +720,7 @@ let rec typeof (ctx:context) (lst:lockset) (t:term) =
               if existlock li1 lst then
                 TyUnit
               else 
-                error fi "acquire lock before assign"
+                error fi "lock isn't acquire before assignment"
             else
               error fi "arguments of := are incompatible"
         | _ -> error fi "argument of ! is not a Ref or Sink")
@@ -752,7 +755,7 @@ let rec typeof (ctx:context) (lst:lockset) (t:term) =
   | TmAcquire(fi,t1,t2) ->
       (match simplifyty ctx (typeof ctx lst t1) with
           TyMutex(l1) -> 
-            if maxlock lst < l1 then
+            if sizelockset lst == 0 || maxlock lst < l1 then
             let lst' =  appendlock l1 lst in
              simplifyty ctx (typeof ctx lst' t2)
             else error fi "lock should be acquired in order"

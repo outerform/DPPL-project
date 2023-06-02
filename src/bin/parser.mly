@@ -259,8 +259,6 @@ Term :
   | IF Term THEN Term ELSE Term
       { fun ctx -> TmIf($1, $2 ctx, $4 ctx, $6 ctx) }
 // add
-  | WAIT Term
-        { fun ctx -> TmWait($1,$2 ctx) }
   | ACQUIRE Term IN Term
         { fun ctx -> TmAcquire($1,$2 ctx, $4 ctx) }
 
@@ -272,8 +270,8 @@ AppTerm :
           let e1 = $1 ctx in
           let e2 = $2 ctx in
           TmApp(tmInfo e1,e1,e2) }
-  | REF PathTerm PathTerm
-      { fun ctx -> TmRefMutex($1, $2 ctx, TmRef($1, $3 ctx)) }
+  | REF PathTerm
+      { fun ctx -> TmRef($1, $2 ctx) }
   | BANG PathTerm 
       { fun ctx -> TmDeref($1, $2 ctx) }
   | FIX PathTerm
@@ -288,6 +286,8 @@ AppTerm :
   | ISZERO PathTerm
       { fun ctx -> TmIsZero($1, $2 ctx) }
 // add 
+  | WAIT PathTerm
+        { fun ctx -> TmWait($1,$2 ctx) }
   | REF LT UCID GT PathTerm
         { fun ctx -> TmRefMutex($1, $3.v, $5 ctx) }
 
@@ -406,10 +406,10 @@ TyBinder :
   | EQ Type
       { fun ctx -> TyAbbBind($2 ctx) }
 
-MutexFields :
-    UCID
-      { newmutexset $1.v }
-  | UCID COMMA MutexFields
-      { appendmutex $1.v $3 }
+// MutexFields :
+//     UCID
+//       { newmutexset $1.v }
+//   | UCID COMMA MutexFields
+//       { appendmutex $1.v $3 }
 
 /*   */

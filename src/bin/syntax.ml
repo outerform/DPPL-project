@@ -16,13 +16,14 @@ let printlockset s =
   print_string ("<" ^ List.hd s);
   List.iter (fun a -> print_string ("," ^ a)) (List.tl s);
   print_string ">";;
-let mapmutexset f ls = List.map f (StringSet.elements ls)
-let intermutexset = StringSet.inter
-let unionmutexset = StringSet.union
-let foldmutexset f ls i = StringSet.fold f ls i
-let submutexset = StringSet.subset
-let mutexsetequal = StringSet.equal
-let existmutex = StringSet.mem
+let maplockset f ls = List.map f (StringSet.elements ls)
+let interlockset = StringSet.inter
+let unionlockset = StringSet.union
+let foldlockset f ls i = StringSet.fold f ls i
+let sublockset = StringSet.subset
+let locksetequal = StringSet.equal
+let existlock = StringSet.mem
+let sizelockset = StringSet.cardinal
 
 type ty =
     TyBot
@@ -349,7 +350,14 @@ let rec printty_Type outer ctx tyT = match tyT with
     TyRef(tyT) -> pr "Ref "; printty_AType false ctx tyT
   | TySource(tyT) -> pr "Source "; printty_AType false ctx tyT
   | TySink(tyT) -> pr "Sink "; printty_AType false ctx tyT
+  | TyMutex(lk) -> pr ("Mutex<"^lk^">")
+  | TyRefMutex(lk,tyT) -> pr ("RefMutex<"^lk^"> "); printty_AType false ctx tyT
+  | TySourceMutex(lk,tyT) -> pr ("SourceMutex<"^lk^"> "); printty_AType false ctx tyT
+  | TySinkMutex(lk,tyT) -> pr ("SinkMutex<"^lk^"> "); printty_AType false ctx tyT
+  | TyThread(tyT) -> pr "Thread "; printty_AType false ctx tyT
   | tyT -> printty_ArrowType outer ctx tyT
+
+
 
 and printty_ArrowType outer ctx  tyT = match tyT with 
     TyArr(tyT1,tyT2) ->
@@ -457,11 +465,6 @@ let rec printtm_Term outer ctx t = match t with
        printtm_Term false ctx t3;
        cbox()
   (* add *)
-  | TmWait(fi, t1) ->
-       obox();
-       pr "wait ";
-       printtm_Term false ctx t1;
-       cbox()
   |TmAcquire(fi, l1, t2) ->
         obox();
         pr "acquire ";
@@ -499,8 +502,13 @@ and printtm_AppTerm outer ctx t = match t with
        print_space();
        printtm_AppTerm false ctx t2;
        cbox()
-    | TmRef(fi, t1) ->
-       printtm_ATerm false ctx t1
+  | TmRef(fi, t1) ->
+      printtm_ATerm false ctx t1
+  | TmWait(fi, t1) ->
+      obox();
+      pr "wait ";
+      printtm_PathTerm false ctx t1;
+      cbox()
   | t -> printtm_PathTerm outer ctx t
 
 and printtm_AscribeTerm outer ctx t = match t with
