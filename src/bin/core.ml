@@ -54,10 +54,10 @@ let rec eval1 ctx store t = match t with
   | TmAscribe(fi,t1,tyT) ->
       let t1',store' = eval1 ctx store t1 in
       TmAscribe(fi,t1',tyT), store'
-  | TmRef(fi,t1) ->
+  | TmRef(fi,lst,t1) ->
       if not (isval ctx t1) then
         let (t1',store') = eval1 ctx store t1
-        in (TmRef(fi,t1'), store')
+        in (TmRef(fi,lst,t1'), store')
       else
         let (l,store') = extendstore store t1 in
         (TmLoc(dummyinfo,l), store')
@@ -154,29 +154,24 @@ let rec eval1 ctx store t = match t with
   | TmIsZero(fi,t1) ->
       let t1',store' = eval1 ctx store t1 in
       TmIsZero(fi, t1'), store'
-  | TmThread(fi,v1) when (isval ctx v1)->
+  (* | TmThread(fi,v1) when (isval ctx v1)->
       TmThread(fi, v1), store
   | TmThread(fi,t1) ->
       let t1',store' = eval1 ctx store t1 in
-      TmThread(fi, t1'), store'
+      TmThread(fi, t1'), store' *)
   | TmWait(_,TmThread(_,v1)) ->
       v1, store
   | TmWait(fi,t1) ->
       let t1',store' = eval1 ctx store t1 in
       TmWait(fi, t1'), store'
   | TmAcquire(_,TmMutex(_,_),v2) when isval ctx v2 ->
-      pr "gogoggo";
       v2, store
   | TmAcquire(fi,v1,t2) when isval ctx v1 ->
-    pr "???111";
       let t2',store' = eval1 ctx store t2 in
       TmAcquire(fi, v1, t2'), store'
   | TmAcquire(fi,t1,t2) ->
-    pr "???";
       let t1',store' = eval1 ctx store t1 in
       TmAcquire(fi, t1', t2), store'
-  | TmRefMutex(fi,_,t1) ->
-      t1, store
   | _ -> 
       raise NoRuleApplies
 
@@ -230,9 +225,9 @@ let rec tyeqv ctx tyS tyT =
   | (TyArr(tyS1,tyS2),TyArr(tyT1,tyT2)) ->
        (tyeqv ctx tyS1 tyT1) && (tyeqv ctx tyS2 tyT2)
   | (TyUnit,TyUnit) -> true
-  | (TyRef(tyT1),TyRef(tyT2)) -> tyeqv ctx tyT1 tyT2
+  (* | (TyRef(tyT1),TyRef(tyT2)) -> tyeqv ctx tyT1 tyT2
   | (TySource(tyT1),TySource(tyT2)) -> tyeqv ctx tyT1 tyT2
-  | (TySink(tyT1),TySink(tyT2)) -> tyeqv ctx tyT1 tyT2
+  | (TySink(tyT1),TySink(tyT2)) -> tyeqv ctx tyT1 tyT2 *)
   | (TyTop,TyTop) -> true
   | (TyBool,TyBool) -> true
   | (TyNat,TyNat) -> true
@@ -252,10 +247,10 @@ let rec tyeqv ctx tyS tyT =
   | (TyVar(i,_),TyVar(j,_)) -> i=j
 (* new *)
   | (TyMutex(li1), TyMutex(li2)) -> li1 = li2
-  | (TyRefMutex(li1,tyT1), TyRefMutex(li2,tyT2)) -> li1 = li2 && tyeqv ctx tyT1 tyT2
+  | (TyRef(li1,tyT1), TyRef(li2,tyT2)) -> equallockset li1 li2 && tyeqv ctx tyT1 tyT2
   | (TyThread(tyT1), TyThread(tyT2)) -> tyeqv ctx tyT1 tyT2
-  | (TySourceMutex(li1,tyT1), TySourceMutex(li2,tyT2)) -> li1 = li2 && tyeqv ctx tyT1 tyT2
-  | (TySinkMutex(li1,tyT1), TySinkMutex(li2,tyT2)) -> li1 = li2 && tyeqv ctx tyT1 tyT2
+  | (TySource(li1,tyT1), TySource(li2,tyT2)) -> equallockset li1 li2 && tyeqv ctx tyT1 tyT2
+  | (TySink(li1,tyT1), TySink(li2,tyT2)) -> equallockset li1 li2 && tyeqv ctx tyT1 tyT2
   | _ -> false
 
 let rec subtype ctx tyS tyT =
@@ -269,7 +264,7 @@ let rec subtype ctx tyS tyT =
        true
    | (TyArr(tyS1,tyS2),TyArr(tyT1,tyT2)) ->
        (subtype ctx tyT1 tyS1) && (subtype ctx tyS2 tyT2)
-   | (TyRef(tyT1),TyRef(tyT2)) ->
+   (* | (TyRef(tyT1),TyRef(tyT2)) ->
        subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1
    | (TyRef(tyT1),TySource(tyT2)) ->
        subtype ctx tyT1 tyT2
@@ -278,7 +273,7 @@ let rec subtype ctx tyS tyT =
    | (TyRef(tyT1),TySink(tyT2)) ->
        subtype ctx tyT2 tyT1
    | (TySink(tyT1),TySink(tyT2)) ->
-       subtype ctx tyT2 tyT1
+       subtype ctx tyT2 tyT1 *)
    | (TyVariant(fS), TyVariant(fT)) ->
        List.for_all
          (fun (li,tySi) -> 
@@ -294,7 +289,7 @@ let rec subtype ctx tyS tyT =
             with Not_found -> false)
          fT
     (* add *)
-   | (TyRefMutex(l1,tyT1), ty2) ->
+   (* | (TyRefMutex(l1,tyT1), ty2) ->
         (match ty2 with
         | TyRefMutex(l2,tyT2) -> l1 = l2 && subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1
         | TyRef(tyT2) -> subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1
@@ -314,7 +309,17 @@ let rec subtype ctx tyS tyT =
         | TySinkMutex(l2,tyT2) -> l1 = l2 && subtype ctx tyT2 tyT1
         | TyRef(tyT2) -> subtype ctx tyT2 tyT1
         | TySink(tyT2) -> subtype ctx tyT2 tyT1
-        | _ -> false)
+        | _ -> false) *)
+  | (TyRef(l1,tyT1),TyRef(l2,tyT2)) ->
+      sublockset l1 l2 && subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1
+  | (TyRef(l1,tyT1),TySource(l2,tyT2)) ->
+      sublockset l1 l2 && subtype ctx tyT1 tyT2
+  | (TySource(l1,tyT1),TySource(l2,tyT2)) ->
+      sublockset l1 l2 && subtype ctx tyT1 tyT2
+  | (TyRef(l1,tyT1),TySink(l2,tyT2)) ->
+      sublockset l1 l2 && subtype ctx tyT2 tyT1
+  | (TySink(l1,tyT1),TySink(l2, tyT2)) ->
+      sublockset l1 l2 && subtype ctx tyT2 tyT1
   | (_,_) -> 
        false
 
@@ -327,7 +332,7 @@ let rec join ctx tyS tyT =
     (TyArr(tyS1,tyS2),TyArr(tyT1,tyT2)) ->
       TyArr(meet ctx tyS1 tyT1, join ctx tyS2 tyT2)
   (* between Ref, sink and source *)
-  | (TyRef(tyT1),TyRef(tyT2)) ->
+  (* | (TyRef(tyT1),TyRef(tyT2)) ->
       if subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1 
         then TyRef(tyT1)
         else (* Warning: this is incomplete... *)
@@ -343,7 +348,7 @@ let rec join ctx tyS tyT =
   | (TyRef(tyT1),TySink(tyT2)) ->
       TySink(meet ctx tyT1 tyT2)
   | (TySink(tyT1),TyRef(tyT2)) ->
-      TySink(meet ctx tyT1 tyT2)
+      TySink(meet ctx tyT1 tyT2) *)
   (*  *)
   | (TyRecord(fS), TyRecord(fT)) ->
       let labelsS = List.map (fun (li,_) -> li) fS in
@@ -359,7 +364,7 @@ let rec join ctx tyS tyT =
       TyRecord(commonFields)
   (* New *)
   (* RefMutex*)
-  | (TyRefMutex(li1,tyT1),ty2) ->
+  (* | (TyRefMutex(li1,tyT1),ty2) ->
       (match ty2 with
       | TyRefMutex(li2,tyT2) when li1 = li2 -> 
           if subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1 then TyRefMutex(li1,tyT1) 
@@ -443,7 +448,24 @@ let rec join ctx tyS tyT =
       | TySink(tyT1)->
           TySinkMutex(li2,meet ctx tyT1 tyT2)
       | _ -> TyTop)
-  (* End of RefMutex *)
+  End of RefMutex *)
+| (TyRef(l1,tyT1),TyRef(l2,tyT2)) ->
+    if subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1 
+      then TyRef(unionlockset l1 l2,tyT1)
+      else (* Warning: this is incomplete... *)
+           TySource(unionlockset l1 l2,join ctx tyT1 tyT2)
+| (TySource(l1,tyT1),TySource(l2,tyT2)) ->
+    TySource(unionlockset l1 l2,join ctx tyT1 tyT2)
+| (TyRef(l1,tyT1),TySource(l2,tyT2)) ->
+    TySource(unionlockset l1 l2,join ctx tyT1 tyT2)
+| (TySource(l1,tyT1),TyRef(l2,tyT2)) ->
+    TySource(unionlockset l1 l2,join ctx tyT1 tyT2)
+| (TySink(l1,tyT1),TySink(l2,tyT2)) ->
+    TySink(unionlockset l1 l2,meet ctx tyT1 tyT2)
+| (TyRef(l1,tyT1),TySink(l2,tyT2)) ->
+    TySink(unionlockset l1 l2,meet ctx tyT1 tyT2)
+| (TySink(l1,tyT1),TyRef(l2,tyT2)) ->
+    TySink(unionlockset l1 l2,meet ctx tyT1 tyT2)
   | _ -> 
       TyTop
 
@@ -455,7 +477,7 @@ and meet ctx tyS tyT =
   match (tyS,tyT) with
     (TyArr(tyS1,tyS2),TyArr(tyT1,tyT2)) ->
       TyArr(join ctx tyS1 tyT1, meet ctx tyS2 tyT2)
-  | (TyRef(tyT1),TyRef(tyT2)) ->
+  (* | (TyRef(tyT1),TyRef(tyT2)) ->
       if subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1 
         then TyRef(tyT1)
         else (* Warning: this is incomplete... *)
@@ -484,7 +506,7 @@ and meet ctx tyS tyT =
     else TyBot
   | (TySink(tyT1),TyRef(tyT2)) ->
     if subtype ctx tyT1 tyT2 then TyRef(tyT2)
-    else TyBot
+    else TyBot *)
   | (TyRecord(fS), TyRecord(fT)) ->
       let labelsS = List.map (fun (li,_) -> li) fS in
       let labelsT = List.map (fun (li,_) -> li) fT in
@@ -507,7 +529,7 @@ and meet ctx tyS tyT =
       TyRecord(allFields)
   (* new *)
   (* RefMutex *)
-  | (TyRefMutex(li1,tyT1),ty2) ->
+  (* | (TyRefMutex(li1,tyT1),ty2) ->
       (match ty2 with
       | TyRefMutex(li2,tyT2) when li1 = li2 -> 
         if subtype ctx tyT1 tyT2 then TyRefMutex(li1,tyT1)
@@ -589,7 +611,37 @@ and meet ctx tyS tyT =
       else TyBot
     | TySink(tyT1) ->
       TySink(join ctx tyT1 tyT2)
-    | _ -> TyTop)
+    | _ -> TyTop) *)
+  | (TyRef(l1,tyT1),TyRef(l2,tyT2)) ->
+      if subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1 
+        then TyRef(interlockset l1 l2,tyT1)
+        else (* Warning: this is incomplete... *)
+             (* TySource(meet ctx tyT1 tyT2) *)
+            TyBot
+  | (TySource(l1,tyT1),TySource(l2,tyT2)) ->
+      TySource(interlockset l1 l2,meet ctx tyT1 tyT2)
+  (* | (TyRef(tyT1),TySource(tyT2)) ->
+      TySource(meet ctx tyT1 tyT2)
+  | (TySource(tyT1),TyRef(tyT2)) ->
+      TySource(meet ctx tyT1 tyT2) *)
+  | (TyRef(l1,tyT1),TySource(l2,tyT2)) ->
+    if subtype ctx tyT1 tyT2 then TyRef(interlockset l1 l2,tyT1)
+    else TyBot
+  | (TySource(l1,tyT1),TyRef(l2,tyT2)) ->
+    if subtype ctx tyT2 tyT1 then TyRef(interlockset l1 l2,tyT2)
+    else TyBot
+  | (TySink(l1,tyT1),TySink(l2,tyT2)) ->
+      TySink(interlockset l1 l2,join ctx tyT1 tyT2)
+  (* | (TyRef(tyT1),TySink(tyT2)) ->
+      TySink(join ctx tyT1 tyT2)
+  | (TySink(tyT1),TyRef(tyT2)) ->
+      TySink(join ctx tyT1 tyT2) *)
+  | (TyRef(l1,tyT1),TySink(l2,tyT2)) ->
+    if subtype ctx tyT2 tyT1 then TyRef(interlockset l1 l2,tyT1)
+    else TyBot
+  | (TySink(l1,tyT1),TyRef(l2,tyT2)) ->
+    if subtype ctx tyT1 tyT2 then TyRef(interlockset l1 l2,tyT2)
+    else TyBot
   | _ -> 
       TyBot
 
@@ -618,8 +670,8 @@ let rec typeof (ctx:context) (lst:lockset) (t:term) =
        error fi "body of as-term does not have the expected type"
   | TmString _ -> TyString
   | TmUnit(_) -> TyUnit
-  | TmRef(_,t1) ->
-      TyRef(typeof ctx lst t1)
+  | TmRef(_,l1,t1) ->
+      TyRef(l1,typeof ctx lst t1)
   | TmLoc(fi,_) ->
       error fi "locations are not supposed to occur in source programs!"
   | TmLet(_,x,t1,t2) ->
@@ -686,38 +738,38 @@ let rec typeof (ctx:context) (lst:lockset) (t:term) =
          | _ -> error fi "arrow type expected")
   | TmDeref(fi,t1) ->
       (match simplifyty ctx (typeof ctx lst t1) with
-          TyRef(tyT1) -> tyT1
+          (* TyRef(tyT1) -> tyT1 *)
         | TyBot -> TyBot
-        | TySource(tyT1) -> tyT1
+        (* | TySource(tyT1) -> tyT1 *)
         (* add *)
-        | TyRefMutex(li1,tyT1) -> if existlock li1 lst then tyT1 else error fi "lock isn't acquired before dereference"
-        | TySourceMutex(li1,tyT1) -> if existlock li1 lst then tyT1 else error fi "lock isn't acquired before dereference"
+        | TyRef(li1,tyT1) -> if sublockset li1 lst then tyT1 else error fi "lock isn't acquired before dereference"
+        | TySource(li1,tyT1) -> if sublockset li1 lst then tyT1 else error fi "lock isn't acquired before dereference"
         | _ -> error fi "argument of ! is not a Ref or Source")
   | TmAssign(fi,t1,t2) ->
       (match simplifyty ctx (typeof ctx lst t1) with
-          TyRef(tyT1) ->
+          (* TyRef(tyT1) ->
             if subtype ctx (typeof ctx lst t2) tyT1 then
               TyUnit
             else
-              error fi "arguments of := are incompatible"
+              error fi "arguments of := are incompatible" *)
         | TyBot -> let _ = typeof ctx lst t2 in TyBot
-        |TySink(tyT1) ->
+        (* |TySink(tyT1) ->
             if subtype ctx (typeof ctx lst t2) tyT1 then
               TyUnit
             else
-              error fi "arguments of := are incompatible"
+              error fi "arguments of := are incompatible" *)
       (* add *)
-        | TyRefMutex(li1, tyT1) ->
+        | TyRef(li1, tyT1) ->
             if subtype ctx (typeof ctx lst t2) tyT1 then
-              if existlock li1 lst then
+              if sublockset li1 lst then
                 TyUnit
               else 
                 error fi "lock isn't acquire before assignment"
             else
               error fi "arguments of := are incompatible"
-        | TySinkMutex(li1, tyT1) ->
+        | TySink(li1, tyT1) ->
             if subtype ctx (typeof ctx lst t2) tyT1 then
-              if existlock li1 lst then
+              if sublockset li1 lst then
                 TyUnit
               else 
                 error fi "lock isn't acquire before assignment"
@@ -762,5 +814,5 @@ let rec typeof (ctx:context) (lst:lockset) (t:term) =
         | _ -> error fi "argument of acquire is not a mutex")
   | TmTid(_) ->
       TyNat
-  | TmRefMutex(_,li,t1) ->
-      TyRefMutex(li, typeof ctx lst t1)
+  (* | TmRefMutex(_,li,t1) ->
+      TyRefMutex(li, typeof ctx lst t1) *)

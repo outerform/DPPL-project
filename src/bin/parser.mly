@@ -175,20 +175,20 @@ Type :
     ArrowType
                 { $1 }
   | RREF AType
-      { fun ctx -> TyRef($2 ctx) }
+      { fun ctx -> TyRef(emptylockset,$2 ctx) }
   | SSOURCE AType
-      { fun ctx -> TySource($2 ctx) }
+      { fun ctx -> TySource(emptylockset,$2 ctx) }
   | SSINK AType
-      { fun ctx -> TySink($2 ctx) }
+      { fun ctx -> TySink(emptylockset,$2 ctx) }
 //   add
   | MUTEX UCID
       { fun ctx -> TyMutex($2.v) }
-  | RREF LT UCID GT AType
-      { fun ctx -> TyRefMutex($3.v, $5 ctx) }
-  | SSOURCE LT UCID GT AType
-        { fun ctx -> TySourceMutex($3.v, $5 ctx) }
-  | SSINK LT UCID GT AType
-        { fun ctx -> TySinkMutex($3.v, $5 ctx) }
+  | RREF LT MutexFields GT AType
+      { fun ctx -> TyRef($3, $5 ctx) }
+  | SSOURCE LT MutexFields GT AType
+        { fun ctx -> TySource($3, $5 ctx) }
+  | SSINK LT MutexFields GT AType
+        { fun ctx -> TySink($3, $5 ctx) }
   | THREAD AType
         { fun ctx -> TyThread($2 ctx) }
 
@@ -271,7 +271,7 @@ AppTerm :
           let e2 = $2 ctx in
           TmApp(tmInfo e1,e1,e2) }
   | REF PathTerm
-      { fun ctx -> TmRef($1, $2 ctx) }
+      { fun ctx -> TmRef($1, emptylockset , $2 ctx) }
   | BANG PathTerm 
       { fun ctx -> TmDeref($1, $2 ctx) }
   | FIX PathTerm
@@ -288,8 +288,8 @@ AppTerm :
 // add 
   | WAIT PathTerm
         { fun ctx -> TmWait($1,$2 ctx) }
-  | REF LT UCID GT PathTerm
-        { fun ctx -> TmRefMutex($1, $3.v, $5 ctx) }
+  | REF LT MutexFields GT PathTerm
+        { fun ctx -> TmRef($1, $3, $5 ctx) }
 
 
 
@@ -406,10 +406,10 @@ TyBinder :
   | EQ Type
       { fun ctx -> TyAbbBind($2 ctx) }
 
-// MutexFields :
-//     UCID
-//       { newmutexset $1.v }
-//   | UCID COMMA MutexFields
-//       { appendmutex $1.v $3 }
+MutexFields :
+    UCID
+      { newlockset $1.v }
+  | UCID COMMA MutexFields
+      { appendlock $1.v $3 }
 
 /*   */

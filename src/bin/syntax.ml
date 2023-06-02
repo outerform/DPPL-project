@@ -24,6 +24,7 @@ let sublockset = StringSet.subset
 let locksetequal = StringSet.equal
 let existlock = StringSet.mem
 let sizelockset = StringSet.cardinal
+let equallockset = StringSet.equal
 
 type ty =
     TyBot
@@ -33,20 +34,20 @@ type ty =
   | TyArr of ty * ty
   | TyRecord of (string * ty) list
   | TyVariant of (string * ty) list
-  | TyRef of ty
+  | TyRef of lockset * ty
   | TyString
   | TyUnit
   | TyBool
-  | TySource of ty
-  | TySink of ty
+  | TySource of lockset * ty
+  | TySink of lockset * ty
   | TyFloat
   | TyNat
   (* New type *)
-  | TyRefMutex of string * ty
+  (* | TyRefMutex of string * ty *)
   | TyThread of ty
   | TyMutex of string
-  | TySourceMutex of string * ty
-  | TySinkMutex of string * ty
+  (* | TySourceMutex of string * ty
+  | TySinkMutex of string * ty *)
 
 type term =
     TmVar of info * int * int
@@ -56,7 +57,7 @@ type term =
   | TmString of info * string
   | TmUnit of info
   | TmLoc of info * int
-  | TmRef of info * term
+  | TmRef of info * lockset * term
   | TmDeref of info * term 
   | TmAssign of info * term * term
   | TmCase of info * term * (string * (string * term)) list
@@ -82,7 +83,7 @@ type term =
   | TmTid of info
   | TmMutex of info * string
   | TmAcquire of info * term * term
-  | TmRefMutex of info * string * term
+  (* | TmRefMutex of info * string * term *)
 
 
 type binding =
@@ -152,16 +153,16 @@ let tymap onvar c tyT =
   | TyBool -> TyBool
   | TyFloat -> TyFloat
   | TyUnit -> TyUnit
-  | TyRef(tyT1) -> TyRef(walk c tyT1)
-  | TySource(tyT1) -> TySource(walk c tyT1)
-  | TySink(tyT1) -> TySink(walk c tyT1)
+  | TyRef(lst,tyT1) -> TyRef(lst, walk c tyT1)
+  | TySource(lst, tyT1) -> TySource(lst, walk c tyT1)
+  | TySink(lst, tyT1) -> TySink(lst, walk c tyT1)
   | TyVar(x,n) -> onvar c x n
   | TyNat -> TyNat
   | TyThread(tyT1) -> TyThread(walk c tyT1)
   | TyMutex(_) as tyT -> tyT
-  | TyRefMutex(l1,tyT1) -> TyRefMutex(l1,walk c tyT1)
+  (* | TyRefMutex(l1,tyT1) -> TyRefMutex(l1,walk c tyT1)
   | TySourceMutex(l1,tyT1) -> TySourceMutex(l1,walk c tyT1)
-  | TySinkMutex(l1,tyT1) -> TySinkMutex(l1,walk c tyT1)
+  | TySinkMutex(l1,tyT1) -> TySinkMutex(l1,walk c tyT1) *)
   in walk c tyT
 
 let tmmap onvar ontype c t = 
@@ -173,7 +174,7 @@ let tmmap onvar ontype c t =
   | TmString _ as t -> t
   | TmUnit(fi) as t -> t
   | TmLoc(fi,l) as t -> t
-  | TmRef(fi,t1) -> TmRef(fi,walk c t1)
+  | TmRef(fi,lst,t1) -> TmRef(fi,lst,walk c t1)
   | TmDeref(fi,t1) -> TmDeref(fi,walk c t1)
   | TmAssign(fi,t1,t2) -> TmAssign(fi,walk c t1,walk c t2)
   | TmTag(fi,l,t1,tyT) -> TmTag(fi, l, walk c t1, ontype c tyT)
@@ -202,7 +203,7 @@ let tmmap onvar ontype c t =
   | TmTid(fi) as t -> t
   | TmAcquire(fi,t1,t2) -> TmAcquire(fi, walk c t1, walk c t2)
   | TmMutex(fi,_) as t -> t
-  | TmRefMutex(fi,l1, t1) -> TmRefMutex(fi, l1, walk c t1)
+  (* | TmRefMutex(fi,l1, t1) -> TmRefMutex(fi, l1, walk c t1) *)
   in walk c t
 
 let typeShiftAbove d c tyT =
@@ -291,7 +292,7 @@ let tmInfo t = match t with
   | TmString(fi,_) -> fi
   | TmUnit(fi) -> fi
   | TmLoc(fi,_) -> fi
-  | TmRef(fi,_) -> fi
+  | TmRef(fi,_,_) -> fi
   | TmDeref(fi,_) -> fi
   | TmAssign(fi,_,_) -> fi
   | TmTag(fi,_,_,_) -> fi
@@ -315,7 +316,7 @@ let tmInfo t = match t with
   (* | TmFork(fi,_) -> fi *)
   | TmWait(fi,_) -> fi
   | TmTid(fi) -> fi
-  | TmRefMutex(fi,_,_) -> fi
+  (* | TmRefMutex(fi,_,_) -> fi *)
   (* | TmSync(fi,_,_) -> fi *)
   | TmMutex(fi,_) -> fi
   | TmAcquire(fi,_,_) -> fi
@@ -347,13 +348,13 @@ let small t =
   | _ -> false
 
 let rec printty_Type outer ctx tyT = match tyT with
-    TyRef(tyT) -> pr "Ref "; printty_AType false ctx tyT
-  | TySource(tyT) -> pr "Source "; printty_AType false ctx tyT
-  | TySink(tyT) -> pr "Sink "; printty_AType false ctx tyT
+    (* TyRef(tyT) -> pr "Ref "; printty_AType false ctx tyT *)
+  (* | TySource(tyT) -> pr "Source "; printty_AType false ctx tyT *)
+  (* | TySink(tyT) -> pr "Sink "; printty_AType false ctx tyT *)
   | TyMutex(lk) -> pr ("Mutex<"^lk^">")
-  | TyRefMutex(lk,tyT) -> pr ("RefMutex<"^lk^"> "); printty_AType false ctx tyT
-  | TySourceMutex(lk,tyT) -> pr ("SourceMutex<"^lk^"> "); printty_AType false ctx tyT
-  | TySinkMutex(lk,tyT) -> pr ("SinkMutex<"^lk^"> "); printty_AType false ctx tyT
+  | TyRef(lk,tyT) -> pr "Ref"; printlockset lk; printty_AType false ctx tyT
+  | TySource(lk,tyT) -> pr ("Source");printlockset lk; printty_AType false ctx tyT
+  | TySink(lk,tyT) -> pr "Sink";printlockset lk; printty_AType false ctx tyT
   | TyThread(tyT) -> pr "Thread "; printty_AType false ctx tyT
   | tyT -> printty_ArrowType outer ctx tyT
 
@@ -494,16 +495,20 @@ and printtm_AppTerm outer ctx t = match t with
        pr "pred "; printtm_ATerm false ctx t1
   | TmIsZero(_,t1) ->
        pr "iszero "; printtm_ATerm false ctx t1
-  | TmRefMutex(fi, t1, t2) ->
+  (* | TmRefMutex(fi, t1, t2) ->
        obox();
        pr "ref ";
        (* printtm_ATerm false ctx t1; *)
        pr t1;
        print_space();
        printtm_AppTerm false ctx t2;
-       cbox()
-  | TmRef(fi, t1) ->
-      printtm_ATerm false ctx t1
+       cbox() *)
+  | TmRef(fi, lst, t1) ->
+        obox();
+        pr "ref ";
+        printlockset lst;
+        printtm_ATerm false ctx t1;
+        cbox()
   | TmWait(fi, t1) ->
       obox();
       pr "wait ";
@@ -537,7 +542,7 @@ and printtm_ATerm outer ctx t = match t with
   | TmString(_,s) -> pr ("\"" ^ s ^ "\"")
   | TmUnit(_) -> pr "unit"
   | TmLoc(fi, l) ->
-       pr "<loc #"; print_int l; pr">"
+       pr "<loc #"; print_int l;pr">"
   | TmTag(fi, l, t, tyT) ->
       obox();
       pr "<"; pr l; pr "="; printtm_Term false ctx t; pr ">";

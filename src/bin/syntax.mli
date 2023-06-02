@@ -17,6 +17,7 @@ val sublockset : lockset -> lockset -> bool
 val locksetequal : lockset -> lockset -> bool
 val existlock : string -> lockset -> bool
 val sizelockset: lockset -> int
+val equallockset: lockset -> lockset -> bool
 
 (* Data type definitions *)
 type ty =
@@ -27,20 +28,20 @@ type ty =
   | TyArr of ty * ty
   | TyRecord of (string * ty) list
   | TyVariant of (string * ty) list
-  | TyRef of ty
+  | TyRef of lockset * ty
   | TyString
   | TyUnit
   | TyBool
-  | TySource of ty
-  | TySink of ty
+  | TySource of lockset * ty
+  | TySink of lockset * ty
   | TyFloat
   | TyNat
   (* New type *)
-  | TyRefMutex of string * ty
+  (* | TyRefMutex of string * ty *)
   | TyThread of ty
   | TyMutex of string
-  | TySourceMutex of string * ty
-  | TySinkMutex of string * ty
+  (* | TySourceMutex of string * ty *)
+  (* | TySinkMutex of string * ty *)
 
 type term =
     TmVar of info * int * int
@@ -50,7 +51,7 @@ type term =
   | TmString of info * string
   | TmUnit of info
   | TmLoc of info * int
-  | TmRef of info * term
+  | TmRef of info * lockset * term
   | TmDeref of info * term 
   | TmAssign of info * term * term
   | TmCase of info * term * (string * (string * term)) list
@@ -75,7 +76,7 @@ type term =
   | TmTid of info
   | TmMutex of info * string
   | TmAcquire of info * term * term
-  | TmRefMutex of info * string * term
+  (* | TmRefMutex of info * string * term *)
 
 type binding =
     NameBind 
