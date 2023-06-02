@@ -3,7 +3,7 @@ open Support.Error
 open Support.Pervasive
 
 (* ---------------------------------------------------------------------- *)
-(* lockset *)
+(* Datatypes *)
 
 module StringSet = Set.Make(String)
 type lockset = StringSet.t
@@ -16,16 +16,13 @@ let printlockset s =
   print_string ("<" ^ List.hd s);
   List.iter (fun a -> print_string ("," ^ a)) (List.tl s);
   print_string ">";;
-let maplockset f ls = List.map f (StringSet.elements ls)
-let interlockset = StringSet.inter
-let unionlockset = StringSet.union
-let foldlockset f ls i = StringSet.fold f ls i
-let sublockset = StringSet.subset
-let locksetequal = StringSet.equal
-let existlock = StringSet.mem
-
-(* ---------------------------------------------------------------------- *)
-(* Datatypes *)
+let mapmutexset f ls = List.map f (StringSet.elements ls)
+let intermutexset = StringSet.inter
+let unionmutexset = StringSet.union
+let foldmutexset f ls i = StringSet.fold f ls i
+let submutexset = StringSet.subset
+let mutexsetequal = StringSet.equal
+let existmutex = StringSet.mem
 
 type ty =
     TyBot
@@ -482,11 +479,6 @@ and printtm_AppTerm outer ctx t = match t with
       print_space();
       printtm_ATerm false ctx t2;
       cbox()
-  | TmRef(fi, t1) ->
-       obox();
-       pr "ref ";
-       printtm_ATerm false ctx t1;
-       cbox()
   | TmDeref(fi, t1) ->
        obox();
        pr "!";
@@ -499,9 +491,16 @@ and printtm_AppTerm outer ctx t = match t with
        pr "pred "; printtm_ATerm false ctx t1
   | TmIsZero(_,t1) ->
        pr "iszero "; printtm_ATerm false ctx t1
-  (* add *)
-  | TmRefMutex(_,li,t1) ->
-        pr ("ref with lock" ^ li); printtm_PathTerm false ctx t1
+  | TmRefMutex(fi, t1, t2) ->
+       obox();
+       pr "ref ";
+       (* printtm_ATerm false ctx t1; *)
+       pr t1;
+       print_space();
+       printtm_AppTerm false ctx t2;
+       cbox()
+    | TmRef(fi, t1) ->
+       printtm_ATerm false ctx t1
   | t -> printtm_PathTerm outer ctx t
 
 and printtm_AscribeTerm outer ctx t = match t with

@@ -110,6 +110,15 @@ open Syntax
 %token <Support.Error.info> USCORE
 %token <Support.Error.info> VBAR
 
+/* New tokens */
+%token <Support.Error.info> FORK
+%token <Support.Error.info> WAIT
+%token <Support.Error.info> MUTEX
+%token <Support.Error.info> ACQUIRE
+
+%token <Support.Error.info> MMUTEX
+%token <Support.Error.info> TTHREAD
+
 /* ---------------------------------------------------------------------- */
 /* The starting production of the generated parser is the syntactic class
    toplevel.  The type that is returned when a toplevel is recognized is
@@ -160,8 +169,6 @@ Binder :
       { fun ctx -> VarBind ($2 ctx)}
   | EQ Term 
       { fun ctx -> TmAbbBind($2 ctx, None) }
-  | EQ Term COLON Type
-      { fun ctx -> TmAbbBind($2 ctx, Some($4 ctx)) }
 
 /* All type expressions */
 Type :
@@ -265,8 +272,8 @@ AppTerm :
           let e1 = $1 ctx in
           let e2 = $2 ctx in
           TmApp(tmInfo e1,e1,e2) }
-  | REF PathTerm
-      { fun ctx -> TmRef($1, $2 ctx) }
+  | REF PathTerm PathTerm
+      { fun ctx -> TmRefMutex($1, $2 ctx, TmRef($1, $3 ctx)) }
   | BANG PathTerm 
       { fun ctx -> TmDeref($1, $2 ctx) }
   | FIX PathTerm
@@ -393,17 +400,16 @@ Field :
   | Term
       { fun ctx i -> (string_of_int i, $1 ctx) }
 
-LockFields :
-    UCID
-      { newlockset $1.v }
-  | UCID COMMA LockFields
-      { appendlock $1.v $3 }
-
 TyBinder :
     /* empty */
       { fun ctx -> TyVarBind }
   | EQ Type
       { fun ctx -> TyAbbBind($2 ctx) }
 
+MutexFields :
+    UCID
+      { newmutexset $1.v }
+  | UCID COMMA MutexFields
+      { appendmutex $1.v $3 }
 
 /*   */

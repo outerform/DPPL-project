@@ -21,6 +21,8 @@ let rec isval ctx t = match t with
   | t when isnumericval ctx t  -> true
   | TmAbs(_,_,_,_) -> true
   | TmRecord(_,fields) -> List.for_all (fun (l,ti) -> isval ctx ti) fields
+  | TmThread(_,_) -> true
+  | TmMutex(_,_) -> true
   | _ -> false
 
 type store = term list  
@@ -152,6 +154,26 @@ let rec eval1 ctx store t = match t with
   | TmIsZero(fi,t1) ->
       let t1',store' = eval1 ctx store t1 in
       TmIsZero(fi, t1'), store'
+  | TmThread(fi,v1) when (isval ctx v1)->
+      TmThread(fi, v1), store
+  | TmThread(fi,t1) ->
+      let t1',store' = eval1 ctx store t1 in
+      TmThread(fi, t1'), store'
+  | TmWait(_,TmThread(_,v1)) ->
+      v1, store
+  | TmWait(fi,t1) ->
+      let t1',store' = eval1 ctx store t1 in
+      TmWait(fi, t1'), store'
+  | TmAcquire(_,TmMutex(_,_),v2) when isval ctx v2 ->
+      v2, store
+  | TmAcquire(fi,v1,t2) when isval ctx v1 ->
+      let t2',store' = eval1 ctx store t2 in
+      TmAcquire(fi, v1, t2'), store'
+  | TmAcquire(fi,t1,t2) ->
+      let t1',store' = eval1 ctx store t1 in
+      TmAcquire(fi, t1', t2), store'
+  | TmRefMutex(fi,_,t1) ->
+      t1, store
   | _ -> 
       raise NoRuleApplies
 
@@ -429,7 +451,7 @@ and meet ctx tyS tyT =
   let tyT = simplifyty ctx tyT in
   match (tyS,tyT) with
     (TyArr(tyS1,tyS2),TyArr(tyT1,tyT2)) ->
-      TyArr(join ctx tyS1 tyT1, meet ctx  tyS2 tyT2)
+      TyArr(join ctx tyS1 tyT1, meet ctx tyS2 tyT2)
   | (TyRef(tyT1),TyRef(tyT2)) ->
       if subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1 
         then TyRef(tyT1)
