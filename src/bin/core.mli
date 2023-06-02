@@ -6,7 +6,7 @@
 open Syntax
 open Support.Error
 
-val typeof : context -> term -> ty
+val typeof : context ->lockset-> term -> ty
 val subtype : context -> ty -> ty -> bool
 type store
 val emptystore : store

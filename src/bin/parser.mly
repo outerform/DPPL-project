@@ -57,12 +57,12 @@ open Syntax
 
 /* new keyword tokens */
 %token <Support.Error.info> THREAD
-%token <Support.Error.info> LOCK
+%token <Support.Error.info> ACQUIRE
 %token <Support.Error.info> FORK
 %token <Support.Error.info> WAIT
 %token <Support.Error.info> TID
-%token <Support.Error.info> SYNC
-%token <Support.Error.info> NEW
+%token <Support.Error.info> MUTEX
+
 
 /* Identifier and constant value tokens */
 %token <string Support.Error.withinfo> UCID  /* uppercase-initial */
@@ -173,8 +173,17 @@ Type :
       { fun ctx -> TySource($2 ctx) }
   | SSINK AType
       { fun ctx -> TySink($2 ctx) }
+//   add
+  | MUTEX UCID
+      { fun ctx -> TyMutex($2.v) }
+  | RREF LT UCID GT AType
+      { fun ctx -> TyRefMutex($3.v, $5 ctx) }
+  | SSOURCE LT UCID GT AType
+        { fun ctx -> TySourceMutex($3.v, $5 ctx) }
+  | SSINK LT UCID GT AType
+        { fun ctx -> TySinkMutex($3.v, $5 ctx) }
   | THREAD AType
-      { fun ctx -> TyThread($2 ctx) }
+        { fun ctx -> TyThread($2 ctx) }
 
 /* Atomic types are those that never need extra parentheses */
 AType :
@@ -242,14 +251,11 @@ Term :
                 $8 ctx1) }
   | IF Term THEN Term ELSE Term
       { fun ctx -> TmIf($1, $2 ctx, $4 ctx, $6 ctx) }
+// add
   | WAIT Term
-      { fun ctx -> TmWait($1, $2 ctx) }
-  | FORK LCURLY Term RCURLY
-      { fun ctx -> TmFork($1, $3 ctx) }
-  | SYNC Term IN Term
-      { fun ctx -> TmSync($1, $2 ctx, $4 ctx) }
-  | NEW LOCK LT LockFields GT
-      { fun ctx -> TmLock($1, $4) }
+        { fun ctx -> TmWait($1,$2 ctx) }
+  | ACQUIRE Term IN Term
+        { fun ctx -> TmAcquire($1,$2 ctx, $4 ctx) }
 
 AppTerm :
     PathTerm
@@ -274,6 +280,11 @@ AppTerm :
       { fun ctx -> TmPred($1, $2 ctx) }
   | ISZERO PathTerm
       { fun ctx -> TmIsZero($1, $2 ctx) }
+// add 
+  | REF LT UCID GT PathTerm
+        { fun ctx -> TmRefMutex($1, $3.v, $5 ctx) }
+
+
 
 AscribeTerm :
     ATerm AS Type
@@ -347,9 +358,11 @@ ATerm :
           in f $1.v }
   | INERT LSQUARE Type RSQUARE 
       { fun ctx -> TmInert($1, $3 ctx) }
-  | TID
-      { fun ctx -> TmTid($1) }
-
+// add rule
+  | FORK LCURLY Term RCURLY
+        { fun ctx -> TmThread($1,$3 ctx) }
+  | MUTEX LT UCID GT
+        { fun ctx -> TmMutex($1, $3.v) }
 Cases :
     Case
       { fun ctx -> [$1 ctx] }

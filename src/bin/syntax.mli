@@ -1,11 +1,12 @@
 (* module Syntax: syntax trees and associated support functions *)
 
-open Support.Pervasive
+(* open Support.Pervasive *)
 open Support.Error
 
 (* lockset *)
 type lockset
 val appendlock : string -> lockset -> lockset
+val maxlock: lockset -> string
 val newlockset : string -> lockset
 val emptylockset: lockset
 val maplockset : (string -> 'a) -> lockset -> 'a list
@@ -22,10 +23,10 @@ type ty =
   | TyTop
   | TyId of string
   | TyVar of int * int
-  | TyArr of ty * ty * lockset
+  | TyArr of ty * ty
   | TyRecord of (string * ty) list
   | TyVariant of (string * ty) list
-  | TyRef of ty * lockset
+  | TyRef of ty
   | TyString
   | TyUnit
   | TyBool
@@ -33,18 +34,22 @@ type ty =
   | TySink of ty
   | TyFloat
   | TyNat
+  (* New type *)
+  | TyRefMutex of string * ty
   | TyThread of ty
-  | TyLock of lockset
+  | TyMutex of string
+  | TySourceMutex of string * ty
+  | TySinkMutex of string * ty
 
 type term =
     TmVar of info * int * int
-  | TmAbs of info * string * ty * term * lockset
+  | TmAbs of info * string * ty * term
   | TmApp of info * term * term
   | TmAscribe of info * term * ty
   | TmString of info * string
   | TmUnit of info
   | TmLoc of info * int
-  | TmRef of info * term * lockset
+  | TmRef of info * term
   | TmDeref of info * term 
   | TmAssign of info * term * term
   | TmCase of info * term * (string * (string * term)) list
@@ -63,12 +68,13 @@ type term =
   | TmPred of info * term
   | TmIsZero of info * term
   | TmInert of info * ty
-  | TmThread of info * Thread.t * term Event.channel
-  | TmLock of info * lockset
-  | TmFork of info * term
+  (*New Type*)
+  | TmThread of info * term
   | TmWait of info * term
   | TmTid of info
-  | TmSync of info * term * term
+  | TmMutex of info * string
+  | TmAcquire of info * term * term
+  | TmRefMutex of info * string * term
 
 type binding =
     NameBind 

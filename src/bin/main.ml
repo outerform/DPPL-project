@@ -50,62 +50,62 @@ in
 
 let alreadyImported = ref ([] : string list)
 
-let checkbinding fi ctx b = match b with
+let checkbinding fi ctx lst b = match b with
     NameBind -> NameBind
   | VarBind(tyT) -> VarBind(tyT)
-  | TmAbbBind(t,None) -> TmAbbBind(t, Some(typeof ctx t))
+  | TmAbbBind(t,None) -> TmAbbBind(t, Some(typeof ctx lst t))
   | TmAbbBind(t,Some(tyT)) ->
-     let tyT' = typeof ctx t in
+     let tyT' = typeof ctx lst t in
      if subtype ctx tyT' tyT then TmAbbBind(t,Some(tyT))
      else error fi "Type of binding does not match declared type"
   | TyVarBind -> TyVarBind
   | TyAbbBind(tyT) -> TyAbbBind(tyT)
 
-let prbindingty ctx b = match b with
+let prbindingty ctx lst b = match b with
     NameBind -> ()
   | VarBind(tyT) -> pr ": "; printty ctx tyT 
   | TmAbbBind(t, tyT_opt) -> pr ": ";
      (match tyT_opt with
-         None -> printty ctx (typeof ctx t)
+         None -> printty ctx (typeof ctx lst t)
        | Some(tyT) -> printty ctx tyT)
   | TyVarBind -> ()
   | TyAbbBind(tyT) -> pr ":: *"
 
-let rec process_file f (ctx,store) =
+let rec process_file f (ctx,lst,store) =
   if List.mem f (!alreadyImported) then
-    (ctx,store)
+    (ctx,lst,store)
   else (
     alreadyImported := f :: !alreadyImported;
     let cmds,_ = parseFile f ctx in
-    let g (ctx,store) c =  
+    let g (ctx,lst,store) c =  
       open_hvbox 0;
-      let results = process_command (ctx,store) c in
+      let results = process_command (ctx,lst,store) c in
       print_flush();
       results
     in
-      List.fold_left g (ctx,store) cmds)
+      List.fold_left g (ctx,lst,store) cmds)
 
-and process_command (ctx,store) cmd = match cmd with
+and process_command (ctx,lst,store) cmd = match cmd with
     Import(f) -> 
-      process_file f (ctx,store)
+      process_file f (ctx,lst,store)
   | Eval(fi,t) -> 
-      let tyT = typeof ctx t in
+      let tyT = typeof ctx lst t in
       let t',store  = eval ctx store t in
       printtm_ATerm true ctx t'; 
       print_break 1 2;
       pr ": ";
       printty ctx tyT;
       force_newline();
-      (ctx,store)
+      (ctx,lst,store)
   | Bind(fi,x,bind) -> 
-      let bind = checkbinding fi ctx bind in
+      let bind = checkbinding fi ctx lst bind in
       let bind',store' = evalbinding ctx store bind in
-      pr x; pr " "; prbindingty ctx bind'; force_newline();
-      addbinding ctx x bind', (shiftstore 1 store')
+      pr x; pr " "; prbindingty ctx lst bind'; force_newline();
+      (addbinding ctx x bind',lst, (shiftstore 1 store'))
   
 let main () = 
   let inFile = parseArgs() in
-  let _ = process_file inFile (emptycontext, emptystore) in
+  let _ = process_file inFile (emptycontext, emptylockset, emptystore) in
   ()
 
 let () = set_max_boxes 1000

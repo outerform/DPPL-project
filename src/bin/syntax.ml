@@ -7,10 +7,9 @@ open Support.Pervasive
 
 module StringSet = Set.Make(String)
 type lockset = StringSet.t
-let appendlock x xs =
-  if StringSet.mem x xs then raise Parsing.Parse_error
-  else StringSet.add x xs
+let appendlock = StringSet.add
 let emptylockset = StringSet.empty
+let maxlock = StringSet.max_elt
 let newlockset x = StringSet.singleton x
 let printlockset s =
   let s = StringSet.elements s in
@@ -33,10 +32,10 @@ type ty =
   | TyTop
   | TyId of string
   | TyVar of int * int
-  | TyArr of ty * ty * lockset
+  | TyArr of ty * ty
   | TyRecord of (string * ty) list
   | TyVariant of (string * ty) list
-  | TyRef of ty * lockset
+  | TyRef of ty
   | TyString
   | TyUnit
   | TyBool
@@ -44,18 +43,22 @@ type ty =
   | TySink of ty
   | TyFloat
   | TyNat
+  (* New type *)
+  | TyRefMutex of string * ty
   | TyThread of ty
-  | TyLock of lockset
+  | TyMutex of string
+  | TySourceMutex of string * ty
+  | TySinkMutex of string * ty
 
 type term =
     TmVar of info * int * int
-  | TmAbs of info * string * ty * term * lockset
+  | TmAbs of info * string * ty * term
   | TmApp of info * term * term
   | TmAscribe of info * term * ty
   | TmString of info * string
   | TmUnit of info
   | TmLoc of info * int
-  | TmRef of info * term * lockset
+  | TmRef of info * term
   | TmDeref of info * term 
   | TmAssign of info * term * term
   | TmCase of info * term * (string * (string * term)) list
@@ -74,12 +77,15 @@ type term =
   | TmPred of info * term
   | TmIsZero of info * term
   | TmInert of info * ty
-  | TmThread of info * Thread.t * term Event.channel
-  | TmLock of info * lockset
-  | TmFork of info * term
+  (* | TmThread of info * Thread.t * term Event.channel *)
+  | TmThread of info * term
+  (* | TmFork of info * term *)
   | TmWait of info * term
   | TmTid of info
-  | TmSync of info * term * term
+  | TmMutex of info * string
+  | TmAcquire of info * term * term
+  | TmRefMutex of info * string * term
+
 
 type binding =
     NameBind 
@@ -154,7 +160,10 @@ let tymap onvar c tyT =
   | TyVar(x,n) -> onvar c x n
   | TyNat -> TyNat
   | TyThread(tyT1) -> TyThread(walk c tyT1)
-  | TyLock(_) as tyT -> tyT
+  | TyMutex(_) as tyT -> tyT
+  | TyRefMutex(l1,tyT1) -> TyRefMutex(l1,walk c tyT1)
+  | TySourceMutex(l1,tyT1) -> TySourceMutex(l1,walk c tyT1)
+  | TySinkMutex(l1,tyT1) -> TySinkMutex(l1,walk c tyT1)
   in walk c tyT
 
 let tmmap onvar ontype c t = 
@@ -190,12 +199,12 @@ let tmmap onvar ontype c t =
   | TmPred(fi,t1)   -> TmPred(fi, walk c t1)
   | TmIsZero(fi,t1) -> TmIsZero(fi, walk c t1)
   | TmInert(fi,tyT) -> TmInert(fi,ontype c tyT)
-  | TmThread(fi,_,_) as t -> t
-  | TmLock(fi,t1) as t -> t
-  | TmFork(fi,t1) -> TmFork(fi,walk c t1)
+  | TmThread(fi,t1) -> TmThread(fi,walk c t1)
   | TmWait(fi,t1) -> TmWait(fi,walk c t1)
   | TmTid(fi) as t -> t
-  | TmSync(fi,t1,t2) -> TmSync(fi, walk c t1, walk c t2)
+  | TmAcquire(fi,t1,t2) -> TmAcquire(fi, walk c t1, walk c t2)
+  | TmMutex(fi,_) as t -> t
+  | TmRefMutex(fi,l1, t1) -> TmRefMutex(fi, l1, walk c t1)
   in walk c t
 
 let typeShiftAbove d c tyT =
@@ -303,12 +312,15 @@ let tmInfo t = match t with
   | TmPred(fi,_) -> fi
   | TmIsZero(fi,_) -> fi
   | TmInert(fi,_) -> fi
-  | TmThread(fi,_,_) -> fi
-  | TmLock(fi,_) -> fi
-  | TmFork(fi,_) -> fi
+  | TmThread(fi,_) -> fi
+  (* | TmLock(fi,_) -> fi *)
+  (* | TmFork(fi,_) -> fi *)
   | TmWait(fi,_) -> fi
   | TmTid(fi) -> fi
-  | TmSync(fi,_,_) -> fi
+  | TmRefMutex(fi,_,_) -> fi
+  (* | TmSync(fi,_,_) -> fi *)
+  | TmMutex(fi,_) -> fi
+  | TmAcquire(fi,_,_) -> fi
 
 (* ---------------------------------------------------------------------- *)
 (* Printing *)
@@ -392,7 +404,7 @@ and printty_AType outer ctx tyT = match tyT with
             ^ (List.fold_left (fun s (x,_) -> s ^ " " ^ x) "" ctx)
             ^ " }]")
   | TyNat -> pr "Nat"
-  | TyLock(a) -> pr ("Lock"); printlockset a
+  (* | TyLock(a) -> pr ("Lock"); printlockset a *)
   | tyT -> pr "("; printty_Type outer ctx tyT; pr ")"
 
 let printty ctx tyT = printty_Type true ctx tyT 
@@ -447,6 +459,20 @@ let rec printtm_Term outer ctx t = match t with
        pr "else ";
        printtm_Term false ctx t3;
        cbox()
+  (* add *)
+  | TmWait(fi, t1) ->
+       obox();
+       pr "wait ";
+       printtm_Term false ctx t1;
+       cbox()
+  |TmAcquire(fi, l1, t2) ->
+        obox();
+        pr "acquire ";
+        printtm_Term false ctx l1;
+        print_space();
+        pr "in ";
+        printtm_Term false ctx t2;
+        cbox()
   | t -> printtm_AppTerm outer ctx t
 
 and printtm_AppTerm outer ctx t = match t with
@@ -473,6 +499,9 @@ and printtm_AppTerm outer ctx t = match t with
        pr "pred "; printtm_ATerm false ctx t1
   | TmIsZero(_,t1) ->
        pr "iszero "; printtm_ATerm false ctx t1
+  (* add *)
+  | TmRefMutex(_,li,t1) ->
+        pr ("ref with lock" ^ li); printtm_PathTerm false ctx t1
   | t -> printtm_PathTerm outer ctx t
 
 and printtm_AscribeTerm outer ctx t = match t with
@@ -531,12 +560,13 @@ and printtm_ATerm outer ctx t = match t with
        | _ -> (pr "(succ "; printtm_ATerm false ctx t1; pr ")")
      in f 1 t1
   | TmInert(_,tyT) -> pr "inert["; printty_Type false ctx tyT; pr "]"
-  | TmThread(_,thread,_) ->
+  (* add *)
+  | TmThread(_,t) ->
       obox0();
-      print_string ("thread<" ^ (string_of_int (Thread.id thread)) ^ ">");
+      print_string ("thread<");printtm_Term false ctx t; print_string(">");
       cbox()
-  | TmLock(_,t) ->
-      pr ("lock"); printlockset t;
+  | TmMutex(_,t) ->
+      pr ("lock"); pr t;
   | t -> pr "("; printtm_Term outer ctx t; pr ")"
 
 let printtm ctx t = printtm_Term true ctx t 
