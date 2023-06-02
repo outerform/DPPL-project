@@ -1,1 +1,4 @@
-新增了关键字"Thread"， "fork"， "lock"， "wait", "tid".
+新Type: Thread, RefMutex, SourceMutex, SinkMutex, Mutex
+新term: thread, wait, refmutex, acquire
+类型检查是，上下文除了context，还有lockset
+

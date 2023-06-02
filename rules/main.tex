@@ -112,6 +112,10 @@
     \\
     \tag {\textsc{E-AssignV}}
     \inference[]{\mu(l)=v}{l:=v|\mu -> unit|\mu,l\mapsto v}
+    \\
+    \\
+    \tag {\textsc{S-RefMutex}}
+    \inference[]{\Gamma|\lock \vdash t_1:Ref<X>T & \Gamma \vdash t_2:T & X\in \lock}{\Gamma|\lock\vdash t_1 := t_2:Unit}
 \end{align*}
 
 \section{Lock}
