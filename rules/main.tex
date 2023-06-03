@@ -19,6 +19,7 @@
 \usepackage{bookmark}
 \usepackage{array}
 \usepackage{multirow}
+% \usepackage{minted}
 % \usepackage{xfrac,unicode-math}
 \def\lock {\mathbb{L}}
 
@@ -29,6 +30,41 @@
 \begin{document}
 % \fontname\font
 \maketitle
+
+\section{Syntax}
+\begin{flalign*}
+    t :: =\qquad& &\emph{\texttt{terms}}\\
+    & v \\
+    & if term then term else term \\
+    & succ number\\
+    & pred number\\
+    & iszero number\\
+    & refterm \\
+    & t t \\
+    \\
+    refterm :: = \qquad & & \emph{\texttt{terms about ref}} \\
+    & !t \\
+    & ref t \\
+    & ref<UCID> t \\
+    & t := t \\
+    \\
+    v = \qquad& &\emph{\texttt{values}}\\
+    & true \\
+    & false \\
+    & 0 \\
+    & \lambda x:T.t \\
+    & string \\
+    & unit \\
+    & number \\
+    & float \\
+    & record \\
+    & mutex \\
+    & loc \\
+    & tag \\
+    & thread v\\
+\\
+\end{flalign*}
+
 
 \section{Fork}
 
