@@ -43,3 +43,5 @@ wait t10;
 
 acquire x in !buf1;
 acquire y in !buf2;
+
+/*right*/

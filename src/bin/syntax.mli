@@ -25,7 +25,7 @@ type ty =
   | TyTop
   | TyId of string
   | TyVar of int * int
-  | TyArr of ty * ty
+  | TyArr of lockset * string option * ty * ty
   | TyRecord of (string * ty) list
   | TyVariant of (string * ty) list
   | TyRef of lockset * ty
@@ -45,7 +45,7 @@ type ty =
 
 type term =
     TmVar of info * int * int
-  | TmAbs of info * string * ty * term
+  | TmAbs of info * lockset *string * ty * term
   | TmApp of info * term * term
   | TmAscribe of info * term * ty
   | TmString of info * string
