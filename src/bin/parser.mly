@@ -237,11 +237,11 @@ Term :
   | LAMBDA LCID COLON Type DOT Term 
       { fun ctx ->
           let ctx1 = addname ctx $2.v in
-          TmAbs($1, $2.v, $4 ctx, $6 ctx1) }
+          TmAbs($1,emptylockset, $2.v, $4 ctx, $6 ctx1) }
   | LAMBDA USCORE COLON Type DOT Term 
       { fun ctx ->
           let ctx1 = addname ctx "_" in
-          TmAbs($1, "_", $4 ctx, $6 ctx1) }
+          TmAbs($1,emptylockset "_", $4 ctx, $6 ctx1) }
   | AppTerm COLONEQ AppTerm
       { fun ctx -> TmAssign($2, $1 ctx, $3 ctx) }
   | CASE Term OF Cases
@@ -261,6 +261,15 @@ Term :
 // add
   | ACQUIRE Term IN Term
         { fun ctx -> TmAcquire($1,$2 ctx, $4 ctx) }
+    | LAMBDA LT MutexFields GT LCID COLON Type DOT Term 
+        { fun ctx ->
+            let ctx1 = addname ctx $2.v in
+            TmAbs($1, $3, $5.v, $7 ctx, $9 ctx1) }
+    | LAMBDA  LT MutexFields GT USCORE COLON Type DOT Term 
+        { fun ctx ->
+            let ctx1 = addname ctx "_" in
+            TmAbs($5, $3, "_", $7 ctx, $9 ctx1) 
+        }
 
 AppTerm :
     PathTerm

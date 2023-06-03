@@ -31,7 +31,7 @@ type ty =
   | TyTop
   | TyId of string
   | TyVar of int * int
-  | TyArr of ty * ty
+  | TyArr of lockset * string option * ty * ty
   | TyRecord of (string * ty) list
   | TyVariant of (string * ty) list
   | TyRef of lockset * ty
@@ -51,7 +51,7 @@ type ty =
 
 type term =
     TmVar of info * int * int
-  | TmAbs of info * string * ty * term
+  | TmAbs of info * lockset * string * ty * term
   | TmApp of info * term * term
   | TmAscribe of info * term * ty
   | TmString of info * string
@@ -144,7 +144,7 @@ let rec name2index fi ctx x =
 let tymap onvar c tyT = 
   let rec walk c tyT = match tyT with
     TyBot -> TyBot
-  | TyArr(tyT1,tyT2) -> TyArr(walk c tyT1,walk c tyT2)
+  | TyArr(lst,l1,tyT1,tyT2) -> TyArr(lst,l1,walk c tyT1,walk c tyT2)
   | TyTop -> TyTop
   | TyString -> TyString
   | TyVariant(fieldtys) -> TyVariant(List.map (fun (li,tyTi) -> (li, walk c tyTi)) fieldtys)
@@ -168,7 +168,7 @@ let tymap onvar c tyT =
 let tmmap onvar ontype c t = 
   let rec walk c t = match t with
     TmVar(fi,x,n) -> onvar fi c x n
-  | TmAbs(fi,x,tyT1,t2) -> TmAbs(fi,x,ontype c tyT1,walk (c+1) t2)
+  | TmAbs(lst,fi,x,tyT1,t2) -> TmAbs(lst, fi,x,ontype c tyT1,walk (c+1) t2)
   | TmApp(fi,t1,t2) -> TmApp(fi,walk c t1,walk c t2)
   | TmAscribe(fi,t1,tyT1) -> TmAscribe(fi,walk c t1,ontype c tyT1)
   | TmString _ as t -> t
@@ -286,7 +286,7 @@ let rec getbinding fi ctx i =
 
 let tmInfo t = match t with
     TmVar(fi,_,_) -> fi
-  | TmAbs(fi,_,_,_) -> fi
+  | TmAbs(fi,_,_,_,_) -> fi
   | TmApp(fi, _, _) -> fi
   | TmAscribe(fi,_,_) -> fi
   | TmString(fi,_) -> fi
@@ -352,17 +352,21 @@ let rec printty_Type outer ctx tyT = match tyT with
   (* | TySource(tyT) -> pr "Source "; printty_AType false ctx tyT *)
   (* | TySink(tyT) -> pr "Sink "; printty_AType false ctx tyT *)
   | TyMutex(lk) -> pr ("Mutex<"^lk^">")
-  | TyRef(lk,tyT) -> pr "Ref"; printlockset lk; printty_AType false ctx tyT
-  | TySource(lk,tyT) -> pr ("Source");printlockset lk; printty_AType false ctx tyT
-  | TySink(lk,tyT) -> pr "Sink";printlockset lk; printty_AType false ctx tyT
+  | TyRef(lk,tyT) -> pr "Ref"; if sizelockset lk > 0 then printlockset lk; printty_AType false ctx tyT
+  | TySource(lk,tyT) -> pr ("Source"); if sizelockset lk > 0 then printlockset lk; printty_AType false ctx tyT
+  | TySink(lk,tyT) -> pr "Sink";if sizelockset lk > 0 then printlockset lk; printty_AType false ctx tyT
   | TyThread(tyT) -> pr "Thread "; printty_AType false ctx tyT
   | tyT -> printty_ArrowType outer ctx tyT
 
 
 
 and printty_ArrowType outer ctx  tyT = match tyT with 
-    TyArr(tyT1,tyT2) ->
+    TyArr(lst,l1,tyT1,tyT2) ->
       obox0(); 
+      if sizelockset lst > 0 then printlockset lst;
+      (match l1 with
+      Some(x) -> pr x
+     | None -> ());
       printty_AType false ctx tyT1;
       if outer then pr " ";
       pr "->";
@@ -416,9 +420,10 @@ and printty_AType outer ctx tyT = match tyT with
 let printty ctx tyT = printty_Type true ctx tyT 
 
 let rec printtm_Term outer ctx t = match t with
-    TmAbs(fi,x,tyT1,t2) ->
+    TmAbs(fi,lst,x,tyT1,t2) ->
       (let (ctx',x') = (pickfreshname ctx x) in
          obox(); pr "lambda ";
+         if sizelockset lst > 0 then printlockset lst;
          pr x'; pr ":"; printty_Type false ctx tyT1; pr ".";
          if (small t2) && not outer then break() else print_space();
          printtm_Term outer ctx' t2;
@@ -506,7 +511,7 @@ and printtm_AppTerm outer ctx t = match t with
   | TmRef(fi, lst, t1) ->
         obox();
         pr "ref ";
-        printlockset lst;
+        if sizelockset lst > 0 then printlockset lst;
         printtm_ATerm false ctx t1;
         cbox()
   | TmWait(fi, t1) ->
