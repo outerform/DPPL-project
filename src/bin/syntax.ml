@@ -363,11 +363,11 @@ let rec printty_Type outer ctx tyT = match tyT with
 and printty_ArrowType outer ctx  tyT = match tyT with 
     TyArr(lst,l1,tyT1,tyT2) ->
       obox0(); 
+      printty_AType false ctx tyT1;
       if sizelockset lst > 0 then printlockset lst;
       (match l1 with
-      Some(x) -> pr x
+      Some(x) -> pr ("["^x^"]")
      | None -> ());
-      printty_AType false ctx tyT1;
       if outer then pr " ";
       pr "->";
       if outer then print_space() else break();
@@ -580,10 +580,10 @@ and printtm_ATerm outer ctx t = match t with
   (* add *)
   | TmThread(_,t) ->
       obox0();
-      print_string ("thread<");printtm_Term false ctx t; print_string(">");
+      print_string ("fork<");printtm_Term false ctx t; print_string(">");
       cbox()
   | TmMutex(_,t) ->
-      pr ("lock"); pr t;
+      pr ("lock<"^t^">");
   | t -> pr "("; printtm_Term outer ctx t; pr ")"
 
 let printtm ctx t = printtm_Term true ctx t 

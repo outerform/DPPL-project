@@ -222,8 +222,8 @@ let rec tyeqv ctx tyS tyT =
   | (TyId(b1),TyId(b2)) -> b1=b2
   | (TyString,TyString) -> true
   | (TyFloat,TyFloat) -> true
-  | (TyArr(l1,tyS1,tyS2),TyArr(l2,tyT1,tyT2)) ->
-       equallockset l1 l2 && (tyeqv ctx tyS1 tyT1) && (tyeqv ctx tyS2 tyT2)
+  | (TyArr(l1,al1,tyS1,tyS2),TyArr(l2,al2,tyT1,tyT2)) ->
+       equallockset l1 l2 && al1 == al2 && (tyeqv ctx tyS1 tyT1) && (tyeqv ctx tyS2 tyT2)
   | (TyUnit,TyUnit) -> true
   (* | (TyRef(tyT1),TyRef(tyT2)) -> tyeqv ctx tyT1 tyT2
   | (TySource(tyT1),TySource(tyT2)) -> tyeqv ctx tyT1 tyT2
@@ -262,8 +262,10 @@ let rec subtype ctx tyS tyT =
        true
    | (_,TyTop) -> 
        true
-   | (TyArr(l1,tyS1,tyS2),TyArr(l2, tyT1,tyT2)) ->
-       sublockset l1 l2 && (subtype ctx tyT1 tyS1) && (subtype ctx tyS2 tyT2)
+   | (TyArr(l1,al1,tyS1,tyS2),TyArr(l2,al2,tyT1,tyT2)) ->
+       sublockset l1 l2 && 
+       ((al1 == None) || (al2 != None && al1 >= al2))
+       && (subtype ctx tyT1 tyS1) && (subtype ctx tyS2 tyT2)
    (* | (TyRef(tyT1),TyRef(tyT2)) ->
        subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1
    | (TyRef(tyT1),TySource(tyT2)) ->
@@ -322,6 +324,11 @@ let rec subtype ctx tyS tyT =
       sublockset l1 l2 && subtype ctx tyT2 tyT1
   | (_,_) -> 
        false
+let minalock (ml1:string option) (ml2:string option) = 
+  match (ml1,ml2) with
+  | (None,_) -> ml2
+  | (_,None) -> ml1
+  | _ -> min ml1 ml2
 
 let rec join ctx tyS tyT =
   if subtype ctx tyS tyT then tyT else 
@@ -329,8 +336,8 @@ let rec join ctx tyS tyT =
   let tyS = simplifyty ctx tyS in
   let tyT = simplifyty ctx tyT in
   match (tyS,tyT) with
-    (TyArr(l1,tyS1,tyS2),TyArr(l2,tyT1,tyT2)) ->
-      TyArr(unionlockset l1 l2, meet ctx tyS1 tyT1, join ctx tyS2 tyT2)
+    (TyArr(l1,al1,tyS1,tyS2),TyArr(l2,al2,tyT1,tyT2)) ->
+      TyArr(unionlockset l1 l2, minalock al1 al2, meet ctx tyS1 tyT1, join ctx tyS2 tyT2)
   (* between Ref, sink and source *)
   (* | (TyRef(tyT1),TyRef(tyT2)) ->
       if subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1 
@@ -475,8 +482,8 @@ and meet ctx tyS tyT =
   let tyS = simplifyty ctx tyS in
   let tyT = simplifyty ctx tyT in
   match (tyS,tyT) with
-    (TyArr(l1,tyS1,tyS2),TyArr(l2, tyT1,tyT2)) ->
-      TyArr(unionlockset l1 l2 , join ctx tyS1 tyT1, meet ctx tyS2 tyT2)
+    (TyArr(l1,al1,tyS1,tyS2),TyArr(l2,al2,tyT1,tyT2)) ->
+      TyArr(unionlockset l1 l2 , (if al1 == None || al2 == None then None else max al1 al2),join ctx tyS1 tyT1, meet ctx tyS2 tyT2)
   (* | (TyRef(tyT1),TyRef(tyT2)) ->
       if subtype ctx tyT1 tyT2 && subtype ctx tyT2 tyT1 
         then TyRef(tyT1)
@@ -647,135 +654,157 @@ and meet ctx tyS tyT =
 
 (* ------------------------   TYPING  ------------------------ *)
 let rec typeof (ctx:context) (lst:lockset) (t:term) = 
+  (* printtm ctx t; print_string "\n" ; *)
 let rec typeof1 (ctx:context) (lst:lockset) (t:term) :ty * string option =
   match t with
     TmVar(fi,i,_) -> getTypeFromContext fi ctx i,None
   | TmAbs(_,l1,x,tyT1,t2) ->
       let ctx' = addbinding ctx x (VarBind(tyT1)) in
-      let lst' = unionlockset l1 lst in
-      let tyT2,lk = typeof1 ctx' lst' t2 in
+      (* let lst' = unionlockset l1 lst in *)
+      let tyT2,lk = typeof1 ctx' l1 t2 in
       TyArr(l1,lk,tyT1, typeShift (-1) tyT2),None
   | TmApp(fi,t1,t2) ->
-      let tyT1,_ = typeof1 ctx lst t1 in
-      let tyT2,_ = typeof1 ctx lst t2 in
+      let tyT1,al1 = typeof1 ctx lst t1 in
+      let tyT2,al2 = typeof1 ctx lst t2 in
+      (* printty ctx tyT1;
+      pr "\n";
+      printty ctx tyT2;
+      pr"\n"; *)
       (match simplifyty ctx tyT1 with
-          TyArr(l11,al,tyT11,tyT12) ->
+          TyArr(l11,al11,tyT11,tyT12) ->
             if not (sublockset l11 lst) then error fi "lock isn't held" else
             if subtype ctx tyT2 tyT11 then 
-              match al with
+              match al11 with
               | None -> tyT12,None
-              | Some(lk) -> if maxlock lst < lk then error fi "lock isn't held" else tyT12,Some(lk)
+              | Some(lk) -> if sizelockset lst > 0 && maxlock lst >= lk then error fi "risking acquire lock out of order" else tyT12,minalock (minalock al1 al2) al11
             else error fi "parameter type mismatch" 
-        | TyBot -> TyBot,None
+        | TyBot -> TyBot,minalock al1 al2
         | _ -> error fi "arrow type expected")
   | TmAscribe(fi,t1,tyT) ->
-     if subtype ctx (typeof ctx lst t1) tyT then
-       tyT,None
+    let tyT1,al1 = typeof1 ctx lst t1 in
+     if subtype ctx tyT1 tyT then
+       tyT,al1
      else
        error fi "body of as-term does not have the expected type"
   | TmString _ -> TyString,None
   | TmUnit(_) -> TyUnit,None
   | TmRef(_,l1,t1) ->
-      TyRef(l1,typeof ctx lst t1),None
+      let tyT1,al1 = typeof1 ctx lst t1 in
+      TyRef(l1,tyT1),al1
   | TmLoc(fi,_) ->
       error fi "locations are not supposed to occur in source programs!"
   | TmLet(_,x,t1,t2) ->
-     let tyT1 = typeof ctx lst t1 in
-     let ctx' = addbinding ctx x (VarBind(tyT1)) in         
-     typeShift (-1) (typeof ctx' lst t2),None
+     let tyT1,al1= typeof1 ctx lst t1 in
+     let ctx' = addbinding ctx x (VarBind(tyT1)) in
+     let tyT2,al2 = typeof1 ctx' lst t2 in
+     typeShift (-1) tyT2, minalock al1 al2
   | TmTrue(_) -> 
       TyBool,None
   | TmFalse(_) -> 
       TyBool,None
   | TmIf(fi,t1,t2,t3) ->
-      if subtype ctx (typeof ctx lst t1) TyBool then
-        join ctx (typeof ctx lst t2) (typeof ctx lst t3),None
+    let tyT1,al1 = typeof1 ctx lst t1 in
+    let tyT2,al2 = typeof1 ctx lst t2 in
+    let tyT3,al3 = typeof1 ctx lst t3 in
+      if subtype ctx tyT1 TyBool then
+        join ctx tyT2 tyT3,minalock (minalock al1 al2) al3
       else error fi "guard of conditional not a boolean"
   | TmRecord(_, fields) ->
+      let tyres = List.map (fun (li,ti) -> (li, typeof1 ctx lst ti)) fields in
       let fieldtys = 
-        List.map (fun (li,ti) -> (li, typeof ctx lst ti)) fields in
-      TyRecord(fieldtys),None
+        List.map (fun (li,(tyi,al)) -> (li,tyi)) tyres in
+      let als = List.map (fun (li,(tyi,al)) -> al) tyres in
+      TyRecord(fieldtys), List.fold_left minalock None als
   | TmProj(fi, t1, l) ->
-      (match simplifyty ctx (typeof ctx lst t1) with
+    let tyT1,al1 = typeof1 ctx lst t1 in
+      (match simplifyty ctx tyT1 with
           TyRecord(fieldtys) ->
             (try List.assoc l fieldtys
-             with Not_found -> error fi ("label "^l^" not found")),None
-        | TyBot -> TyBot,None
+             with Not_found -> error fi ("label "^l^" not found")),al1
+        | TyBot -> TyBot,al1
         | _ -> error fi "Expected record type")
   | TmCase(fi, t, cases) ->
-      (match simplifyty ctx (typeof ctx lst t) with
+    let tyT,al = typeof1 ctx lst t in
+      (match simplifyty ctx tyT with
          TyVariant(fieldtys) ->
            List.iter
              (fun (li,(_,_)) ->
                 try let _ = List.assoc li fieldtys in ()
                 with Not_found -> error fi ("label "^li^" not in type"))
              cases;
-           let casetypes =
+           let typeres =
              List.map (fun (li,(xi,ti)) ->
                          let tyTi =
                            try List.assoc li fieldtys
                            with Not_found ->
                              error fi ("label "^li^" not found") in
                          let ctx' = addbinding ctx xi (VarBind(tyTi)) in
-                         typeShift (-1) (typeof ctx' lst ti))
+                         let tyTi',al = typeof1 ctx' lst ti in
+                         typeShift (-1) tyTi',al)
                       cases in
-           List.fold_left (join ctx) TyBot casetypes,None
-        | TyBot -> TyBot,None
+            let casetypes = List.map (fun (tyi,al) -> tyi) typeres in
+            let als = List.map (fun (tyi,al) -> al) typeres in
+           List.fold_left (join ctx) TyBot casetypes, List.fold_left minalock None als
+        | TyBot -> TyBot,al
         | _ -> error fi "Expected variant type")
   | TmTag(fi, li, ti, tyT) ->
       (match simplifyty ctx tyT with
           TyVariant(fieldtys) ->
             (try
                let tyTiExpected = List.assoc li fieldtys in
-               let tyTi = typeof ctx lst ti in
+               let tyTi,ali = typeof1 ctx lst ti in
                if subtype ctx tyTi tyTiExpected
-                 then tyT,None
+                 then tyT,ali
                  else error fi "field does not have expected type"
              with Not_found -> error fi ("label "^li^" not found"))
         | _ -> error fi "Annotation is not a variant type")
   | TmFix(fi, t1) ->
-      let tyT1 = typeof ctx lst t1 in
+      let tyT1,al1 = typeof1 ctx lst t1 in
       (match simplifyty ctx tyT1 with
            TyArr(lst,al,tyT11,tyT12) ->
-             if subtype ctx tyT12 tyT11 then tyT12,None
+             if al!=None then error fi "fixpoint with lock acquired" else
+             if subtype ctx tyT12 tyT11 then tyT12,al1
              else error fi "result of body not compatible with domain"
-         | TyBot -> TyBot,None
+         | TyBot -> TyBot,al1
          | _ -> error fi "arrow type expected")
   | TmDeref(fi,t1) ->
-      (match simplifyty ctx (typeof ctx lst t1) with
+    let tyT1,al1 = typeof1 ctx lst t1 in
+      (match simplifyty ctx tyT1 with
           (* TyRef(tyT1) -> tyT1 *)
-        | TyBot -> TyBot,None
+        | TyBot -> TyBot,al1
         (* | TySource(tyT1) -> tyT1 *)
         (* add *)
-        | TyRef(li1,tyT1) -> if sublockset li1 lst then tyT1,None else error fi "lock isn't acquired before dereference"
-        | TySource(li1,tyT1) -> if sublockset li1 lst then tyT1,None else error fi "lock isn't acquired before dereference"
+        | TyRef(li1,tyT1) -> if sublockset li1 lst then tyT1,al1 else error fi "lock isn't acquired before dereference"
+        | TySource(li1,tyT1) -> if sublockset li1 lst then tyT1,al1 else error fi "lock isn't acquired before dereference"
         | _ -> error fi "argument of ! is not a Ref or Source")
   | TmAssign(fi,t1,t2) ->
-      (match simplifyty ctx (typeof ctx lst t1) with
+    let tyT1,al1 = typeof1 ctx lst t1 in
+    let tyT2,al2 = typeof1 ctx lst t2 in
+      (match simplifyty ctx tyT1 with
           (* TyRef(tyT1) ->
             if subtype ctx (typeof ctx lst t2) tyT1 then
               TyUnit
             else
               error fi "arguments of := are incompatible" *)
-        | TyBot -> let _ = typeof ctx lst t2 in TyBot,None
+        | TyBot -> let _ = typeof ctx lst t2 in TyBot,minalock al1 al2
         (* |TySink(tyT1) ->
             if subtype ctx (typeof ctx lst t2) tyT1 then
               TyUnit
             else
               error fi "arguments of := are incompatible" *)
       (* add *)
-        | TyRef(li1, tyT1) ->
-            if subtype ctx (typeof ctx lst t2) tyT1 then
+        | TyRef(li1, tyT11) ->
+            if subtype ctx tyT2 tyT11 then
               if sublockset li1 lst then
-                TyUnit,None
+                TyUnit,minalock al1 al2
               else 
                 error fi "lock isn't acquire before assignment"
             else
               error fi "arguments of := are incompatible"
-        | TySink(li1, tyT1) ->
-            if subtype ctx (typeof ctx lst t2) tyT1 then
+        | TySink(li1, tyT11) ->
+            if subtype ctx tyT2 tyT11 then
               if sublockset li1 lst then
-                TyUnit,None
+                TyUnit,minalock al1 al2
               else 
                 error fi "lock isn't acquire before assignment"
             else
@@ -783,29 +812,36 @@ let rec typeof1 (ctx:context) (lst:lockset) (t:term) :ty * string option =
         | _ -> error fi "argument of ! is not a Ref or Sink")
   | TmFloat _ -> TyFloat,None
   | TmTimesfloat(fi,t1,t2) ->
-      if subtype ctx (typeof ctx lst t1) TyFloat
-      && subtype ctx (typeof ctx lst t2) TyFloat then TyFloat,None
+    let tyT1,al1 = typeof1 ctx lst t1 in
+    let tyT2,al2 = typeof1 ctx lst t2 in
+      if subtype ctx tyT1 TyFloat
+      && subtype ctx tyT2 TyFloat then TyFloat,minalock al1 al2
       else error fi "argument of timesfloat is not a number"
   | TmInert(_,tyT) ->
       tyT,None
   | TmZero(_) ->
       TyNat,None
   | TmSucc(fi,t1) ->
-      if subtype ctx (typeof ctx lst t1) TyNat then TyNat,None
+      let tyT1,al1 = typeof1 ctx lst t1 in
+      if subtype ctx tyT1 TyNat then TyNat,al1
       else error fi "argument of succ is not a number"
   | TmPred(fi,t1) ->
-      if subtype ctx (typeof ctx lst t1) TyNat then TyNat,None
+      let tyT1,al1 = typeof1 ctx lst t1 in
+      if subtype ctx tyT1 TyNat then TyNat,al1
       else error fi "argument of pred is not a number"
   | TmIsZero(fi,t1) ->
-      if subtype ctx (typeof ctx lst t1) TyNat then TyBool,None
+      let tyT1,al1 = typeof1 ctx lst t1 in
+      if subtype ctx tyT1 TyNat then TyBool,al1
       else error fi "argument of iszero is not a number"
   (* new *)
   | TmThread(_,t1) ->
-      TyThread(typeof ctx lst t1),None
+    let tyT1,al1 = typeof1 ctx lst t1 in
+      TyThread(tyT1),al1
   | TmWait(fi,t1) ->
-      (match simplifyty ctx (typeof ctx lst t1) with
-          TyThread(tyT1) -> tyT1,None
-        | TyBot -> TyBot,None
+    let tyT1,al1 = typeof1 ctx lst t1 in
+      (match simplifyty ctx tyT1 with
+          TyThread(tyT1) -> tyT1,al1
+        | TyBot -> TyBot,al1
         | _ -> error fi "argument of wait is not a thread")
   | TmMutex(_,l1) ->
       TyMutex(l1),None
