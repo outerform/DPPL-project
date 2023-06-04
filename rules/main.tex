@@ -202,62 +202,67 @@
 \subsection{Wait}
 \begin{align*}
     \tag {\textsc{E-Wait}}
-    \inference{threads(p) = v}{<wait~p,\mu,Th,L> -> <v,\mu,Th\backslash\{p\},L>}
+    \inference{threads(p) = v}{[wait~p,\mu,Th,L] -> [v,\mu,Th\backslash\{p\},L]}
     \\
     \\
     \tag {\textsc{E-Fork}}
-    {<fork\ t,\mu,Th, L>-> <p ,\mu, Th, L>}
+    {[fork\ t,\mu,Th, L]-> [p ,\mu, Th, L]}
 \end{align*}
 
-\subsection{Mutex}
+\subsection{Abstraction}
 \begin{align*}
-    \tag {\textsc{E-RefMutex}}
-    \inference[]{t_1->t_1'}{ref<x> t_1 -> ref<x> t_1'}
-    \\
-    \\
-    \tag {\textsc{E-RefMutex}}
-    \inference[]{t_1|\mu->t_1'|\mu '}{ref<x>~t_1|\mu -> ref<x>~t_1|\mu}
+\tag {\textsc{E-App1}}
+\inference[]{[t_1,\mu,Th,L]->[t_1',\mu',Th', L']}{[t_1~t_2,\mu,Th,L]->[t_1'~t_2,\mu',Th', L']}
+\\
+\\
+\tag {\textsc{E-App2}}
+\inference[]{[t_2,\mu,Th,L]->[t_2',\mu',Th', L']}{[v_1~t_2,\mu,Th,L]->[v_1~t_2',\mu',Th', L']}
+\\
+\\
+\tag {\textsc{E-AppAbs}}
+[(\lambda x:T.t_{12})~v_2,\mu,Th,L]->[t_{12}[x\mapsto v_2],\mu,Th, L]
+\end{align*}
+\subsection{Reference}
+\begin{align*}
+    \tag {\textsc{E-Ref}}
+    \inference[]{[t_1,\mu,Th,L]->[t_1',\mu ',Th', L']}{[ref<x>~t_1,\mu,Th,L]-> [ref<x>~t_1',\mu']}
     \\
     \\
     \tag {\textsc{E-RefV}}
-    \inference[]{l\notin dom(\mu)}{ref<x>~v|\mu -> l|\mu,l\mapsto v}
+    \inference[]{l\notin dom(\mu)}{[ref<x>~v,\mu,Th,L] -> [l,(\mu,l\mapsto v),Th', L']} 
     \\
     \\
     \tag {\textsc{E-Deref}}
-    \inference[]{t_1|\mu->t_1'|\mu '}{!t_1|\mu -> !t_1'|\mu}
+    \inference[]{[t_1,\mu,Th,L]->[t_1',\mu',Th', L']}{[!t_1,\mu,Th,L] -> [!t_1',\mu',Th', L']}
     \\
     \\
     \tag {\textsc{E-DerefLoc}}
-    \inference[]{\mu(l)=v}{!l|\mu -> v|\mu}
+    \inference[]{\mu(l)=v}{[!l,\mu,Th,L] -> [v,\mu,Th,L]}
     \\
     \\
     \tag {\textsc{E-Assign1}}
-    \inference[]{t_1|\mu->t_1'|\mu '}{t_1:=t_2|\mu -> t_1':=t_2|\mu}
+    \inference[]{[t_1,\mu,Th,L]->[t_1',\mu',Th', L']}{[t_1:=t_2,\mu,Th,L] -> [t_1':=t_2,\mu',Th', L']}
     \\
     \\
     \tag {\textsc{E-Assign2}}
-    \inference[]{t_2|\mu->t_2'|\mu '}{v:=t_2|\mu -> v:=t_2'|\mu}
+    \inference[]{[t_2,\mu,Th,L]->[t_2',\mu',Th', L']}{[v:=t_2,\mu,Th,L ]-> [v:=t_2',\mu,Th',L']}
     \\
     \\
     \tag {\textsc{E-AssignV}}
-    \inference[]{\mu(l)=v}{l:=v|\mu -> unit|\mu,l\mapsto v}
-    \\
-    \\
-    \tag {\textsc{S-RefMutex}}
-    \inference[]{\Gamma|\lock \vdash t_1:Ref<X>T & \Gamma \vdash t_2:T & X\in \lock}{\Gamma|\lock\vdash t_1 := t_2:Unit}
+    \inference[]{\mu(l)=v}{[l:=v,\mu,Th,L] -> [unit,(\mu,l\mapsto v),Th',L']}
 \end{align*}
+
+\subsection{Acquire}
 \begin{align*}
-    \tag{\textsc{E-Lock1}}
-    \inference[]{t_1->t_1'}{lock~t_1~t_2 -> lock~t_1'~t_2}
+    \tag{\textsc{E-Acquire1}}
+    \inference[]{[t_1,\mu,Th,L]->[t_1',\mu',Th', L']}{[acquire~t_1~t_2,\mu,Th,L] -> [acquire~t_1'~t_2,\mu',Th',L']}
     \\
     \\
-    \tag{\textsc{E-Lock2}}
-    \inference[]{t_2->t_2'}{lock~v_1~t_2 -> lock~v_1~t_2'}
-    \\
-    \\
-    \tag{\textsc{E-LockV}}lock~v_1~v_2 -> v_2
+    \tag{\textsc{E-AcquireV}}
+    \inference[]{X\notin L}{[acquire~mutex<X>~t_2,\mu,Th,L]-> [t_2,\mu,Th,L\cup{X}]}
     \end{align*}
-    
+
+
 \end{document}
     
     

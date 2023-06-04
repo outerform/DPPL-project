@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1685881910 "/home/outerform/github-repo/DPPL-project/rules/main.tex" "main.pdf" "main" 1685881911 0
-  "/home/outerform/github-repo/DPPL-project/rules/main.tex" 1685881910 6958 d5271aa1effe4378d07a5480b424c848 ""
+["pdflatex"] 1685885936 "/home/outerform/github-repo/DPPL-project/rules/main.tex" "main.pdf" "main" 1685885936 0
+  "/home/outerform/github-repo/DPPL-project/rules/main.tex" 1685885936 7314 2c8d7d6c656b44c431be447a34ff2022 ""
   "/usr/local/texlive/2023/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2023/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1246382020 1004 54797486969f23fa377b128694d548df ""
   "/usr/local/texlive/2023/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex8.tfm" 1246382020 988 bdf658c3bfc2d96d3c8b02cfc1c94c20 ""
@@ -222,8 +222,8 @@
   "/usr/local/texlive/2023/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1684724653 4643411 5ced174c6d521e21dd58a10751c00482 ""
   "/usr/local/texlive/2023/texmf-var/web2c/pdftex/pdflatex.fmt" 1684724674 7889067 77d29cf6ef120c53e5650cfb7542f6bf ""
   "/usr/local/texlive/2023/texmf.cnf" 1684724651 455 5b996dcaa0eb4ef14a83b026bc0a008c ""
-  "main.aux" 1685881911 5379 7b895759cb0786051ad44fe8dd59c64c "pdflatex"
-  "main.tex" 1685881910 6958 d5271aa1effe4378d07a5480b424c848 ""
+  "main.aux" 1685885936 6007 59d22342a32a2617f5982a105d4fd3cf "pdflatex"
+  "main.tex" 1685885936 7314 2c8d7d6c656b44c431be447a34ff2022 ""
   (generated)
   "main.aux"
   "main.log"
