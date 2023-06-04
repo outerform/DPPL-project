@@ -35,19 +35,35 @@
 \begin{flalign*}
     t :: =\qquad& &\emph{\texttt{terms}}\\
     & v \\
-    & if term then term else term \\
-    & succ number\\
-    & pred number\\
-    & iszero number\\
+    & if\ term\ then\ term\ else\ term \\
+    & succ\ number\\
+    & pred\ number\\
+    & iszero\ number\\
     & refterm \\
-    & t t \\
-    \\
+    & t\ t \\
+    & wait\ t \\
+    & fork\{t\} \\
+    & mutex<X1,X2,...,Xn> \\
+    & abstraction \\
+    & tagterm\\
+    abstraction :: = \qquad & & \emph{\texttt{abstraction term}} \\
+    & \lambda x:T.t \\
+    & \lambda<X_1,X_2,...,X_n> x:T.t \\
+    & \lambda<X_1,X_2,...,X_n>[Y] x:T.t \\
     refterm :: = \qquad & & \emph{\texttt{terms about ref}} \\
     & !t \\
-    & ref t \\
-    & ref<UCID> t \\
+    & ref\ t \\
+    & ref<X1,X2,...,Xn>\ t \\
     & t := t \\
-    \\
+    thterm :: = \qquad & & \emph{\texttt{terms about thread}}\\
+    & wait\ t \\
+    & fork \{t\} \\
+    tagterm :: = \qquad & & \emph{\texttt{terms about tags}}\\
+    & <l=t>\ as\ T\\
+    & case\ t\ of \ <l_i = x_i> \implies t_i^{i\in1..n}\\
+
+\end{flalign*}
+\begin{flalign*}
     v = \qquad& &\emph{\texttt{values}}\\
     & true \\
     & false \\
@@ -61,12 +77,12 @@
     & mutex \\
     & loc \\
     & tag \\
-    & thread v\\
+    & fork v\\
 \\
 \end{flalign*}
 
 
-\section{Fork}
+\subsection{Fork}
 
 \begin{align*}
     \tag {\textsc{T-Fork}}
@@ -98,7 +114,7 @@
     \\
 \end{align*}
 
-\section{Mutex}
+\subsection{Mutex}
 \begin{align*}
     \tag {\textsc{T-Mutex}}
     \inference[]{
@@ -154,7 +170,7 @@
     \inference[]{\Gamma|\lock \vdash t_1:Ref<X>T & \Gamma \vdash t_2:T & X\in \lock}{\Gamma|\lock\vdash t_1 := t_2:Unit}
 \end{align*}
 
-\section{Lock}
+\subsection{Lock}
 \begin{align*}
 \tag{\textsc{T-Lock}}
 \inference[]{tail(\lock)<_{lex}X & \Gamma|\lock \vdash t_1:Mutex~X 
