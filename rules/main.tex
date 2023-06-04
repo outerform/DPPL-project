@@ -32,6 +32,7 @@
 \maketitle
 
 \section{Syntax}
+\subsection{terms}
 \begin{flalign*}
     t :: =\qquad& &\emph{\texttt{terms}}\\
     & v \\
@@ -46,6 +47,8 @@
     & mutex<X1,X2,...,Xn> \\
     & abstraction \\
     & tagterm\\
+    & t timesfloat t\\
+    & t
     abstraction :: = \qquad & & \emph{\texttt{abstraction term}} \\
     & \lambda x:T.t \\
     & \lambda<X_1,X_2,...,X_n> x:T.t \\
@@ -80,8 +83,9 @@
     & fork v\\
 \\
 \end{flalign*}
+\subsection{types}
 
-
+\section{Typing rules}
 \subsection{Fork}
 
 \begin{align*}
@@ -89,16 +93,8 @@
     \inference[]{\Gamma |\lock\vdash t:~T}{ fork \{~t~\} :~Thread~T} 
     \\
     \\
-    \tag {\textsc{E-Fork}}
-    \inference[]{t_1->t_1'}{fork \{~t_1~\} -> fork \{~t_1'~\}}
-    \\
-    \\
     \tag {\textsc{T-Wait}}
     \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait ~t~ :~T}
-    \\
-    \\
-    \tag {\textsc{E-Wait}}
-    \inference[]{t->t'}{wait ~t~ -> wait ~t'~}
     \\
     \\
     \tag {\textsc{T-WaitFork}}
@@ -106,7 +102,11 @@
     \\
     \\
     \tag {\textsc{E-Fork}}
-    \inference[]{t_1->t_1'}{wait~t_1 -> wait~t_1'}
+    \inference[]{t_1->t_1'}{fork \{~t_1~\} -> fork \{~t_1'~\}}
+    \\
+    \\
+    \tag {\textsc{E-Wait}}
+    \inference[]{t->t'}{wait ~t~ -> wait ~t'~}
     \\
     \\
     \tag {\textsc{E-WaitFork}}
@@ -124,7 +124,7 @@
     \\
     \tag {\textsc{T-RefMutex}}
     \inference[]{\Gamma|\lock \vdash x :~Mutex~X & \Gamma \vdash v:T}{ref<x> v:~Ref<X>T}
-    \\
+    \\ 
     \\
     \tag {\textsc{E-RefMutex}}
     \inference[]{t_1->t_1'}{ref<x> t_1 -> ref<x> t_1'}
@@ -156,7 +156,7 @@
     \\
     \tag {\textsc{E-Assign1}}
     \inference[]{t_1|\mu->t_1'|\mu '}{t_1:=t_2|\mu -> t_1':=t_2|\mu}
-\end{align*}
+\end{align*}w
 \begin{align*}
     \tag {\textsc{E-Assign2}}
     \inference[]{t_2|\mu->t_2'|\mu '}{v:=t_2|\mu -> v:=t_2'|\mu}
