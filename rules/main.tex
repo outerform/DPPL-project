@@ -32,7 +32,6 @@
 \maketitle
 
 \section{Syntax}
-\subsection{terms}
 \begin{flalign*}
     t :: =\qquad& &\emph{\texttt{terms}}\\
     & v \\
@@ -47,12 +46,13 @@
     & mutex<X1,X2,...,Xn> \\
     & abstraction \\
     & tagterm\\
-    & t timesfloat t\\
-    & t
+    & recordsterm \\
     abstraction :: = \qquad & & \emph{\texttt{abstraction term}} \\
     & \lambda x:T.t \\
     & \lambda<X_1,X_2,...,X_n> x:T.t \\
     & \lambda<X_1,X_2,...,X_n>[Y] x:T.t \\
+\end{flalign*}
+\begin{flalign*}
     refterm :: = \qquad & & \emph{\texttt{terms about ref}} \\
     & !t \\
     & ref\ t \\
@@ -64,9 +64,9 @@
     tagterm :: = \qquad & & \emph{\texttt{terms about tags}}\\
     & <l=t>\ as\ T\\
     & case\ t\ of \ <l_i = x_i> \implies t_i^{i\in1..n}\\
-
-\end{flalign*}
-\begin{flalign*}
+    recodesterm :: = \qquad & & \emph{\texttt{terms about recoders}} \\
+    & {l_i = t_i^{i\in1..n}} \\
+    & t.l \\
     v = \qquad& &\emph{\texttt{values}}\\
     & true \\
     & false \\
@@ -81,9 +81,10 @@
     & loc \\
     & tag \\
     & fork v\\
+    & <l=v>\ as\ T\\
+    & {l_i = v_i^{i\in1..n}}
 \\
 \end{flalign*}
-\subsection{types}
 
 \section{Typing rules}
 \subsection{Fork}
@@ -95,23 +96,6 @@
     \\
     \tag {\textsc{T-Wait}}
     \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait ~t~ :~T}
-    \\
-    \\
-    \tag {\textsc{T-WaitFork}}
-    \inference[]{\Gamma|\lock\vdash t:~Thread~T}{ wait ~t~ :~T}
-    \\
-    \\
-    \tag {\textsc{E-Fork}}
-    \inference[]{t_1->t_1'}{fork \{~t_1~\} -> fork \{~t_1'~\}}
-    \\
-    \\
-    \tag {\textsc{E-Wait}}
-    \inference[]{t->t'}{wait ~t~ -> wait ~t'~}
-    \\
-    \\
-    \tag {\textsc{E-WaitFork}}
-    wait ~fork \{~v~\}~ -> v
-    \\
 \end{align*}
 
 \subsection{Mutex}
@@ -120,22 +104,115 @@
     \inference[]{
         %X\notin \Gamma  
         }{\Gamma|\lock \vdash mutex<X> :~Mutex~X}
+\end{align*}
+
+\subsection{Acquire}
+\begin{align*}
+\tag{\textsc{T-Acquire}}
+\inference[]{max\{\lock\}<_{lex}X & \Gamma|\lock \vdash t_1:Mutex~X 
+& \Gamma|(\lock,X) \vdash t_2:T}{\Gamma|\lock \vdash Aacquire~t_1~t_2:T}
+\end{align*}
+
+\subsection{Abstraction}
+\begin{align*}
+\tag {\textsc{T-Abs}}
+\inference[]{
+    (\Gamma,x:T_1)|(\lock\cup\{X_i\}^{i\in 1...n}) \vdash t:T_2 & mam(\Gamma,T1) = Y
+    }{\Gamma|\lock \vdash \lambda<X_i^{i\in 1...n}> x:T_1.t :~T_1<X_i^{i\in 1...n}>[Y]\rightarrow T_2}
     \\
     \\
-    \tag {\textsc{T-RefMutex}}
-    \inference[]{\Gamma|\lock \vdash x :~Mutex~X & \Gamma \vdash v:T}{ref<x> v:~Ref<X>T}
-    \\ 
+    \tag {\textsc{T-App}}
+\inference[]{
+    \Gamma|\lock \vdash T_1.t :~T_1<X_i^{i\in 1...n}>[Y]\rightarrow T_2 & \Gamma|\lock \vdash t_2:T_2 
+    }{\Gamma|\lock \vdash t_1\ t_2:~T_2}
+\end{align*}
+
+\subsection{Ref}
+\begin{align*}
+    \tag {\textsc{T-Ref}}
+    \inference[]{\Gamma|\lock \vdash v:T}{\Gamma|\lock \vdash ref<X_i^{i\in 1...n}> v:~Ref<X_i^{i\in 1...n}>T}
     \\
+    \\
+    \tag {\textsc{T-Deref}}
+    \inference[]{\Gamma|\lock \vdash t_1:Source<X_i^{i\in 1...n}>T & X_i\in \lock^{i\in 1...n}}{\Gamma|\lock\vdash !t_1:T}
+    \\
+    \\
+    \tag {\textsc{T-Assign}}
+    \inference[]{\Gamma|\lock \vdash t_1:Sink<X_i^{i\in 1...n}>T & \Gamma|\lock \vdash t_2:T & X_i\in \lock^{i\in 1...n}}{\Gamma|\lock\vdash t_1 := t_2:Unit}
+\end{align*}
+
+\section{Subtyping rules}
+
+\subsection{Thread}
+\begin{align*}
+    \tag {\textsc{S-Thread}}
+    \inference[]{T_1 <: T_2}{ Thread~T_1~<:~Thread~T_2}
+\end{align*}
+
+\subsection{Abstraction}
+\begin{align*}
+\tag {\textsc{S-Arrow}}
+\inference[]{
+    T_1~<:~S_1 & S_2~<:~T_2 & Y_1 \ge_{lex} Y_2 &\{X_i\}^{i\in 1...n} \subseteq   \{Z_j\}^{j\in 1...m}
+    }{~S_1<X_i^{i\in 1...n}>[Y_1]\rightarrow S_2~<:~T_1<Z_j^{j\in 1...m}>[Y_2]\rightarrow T_2}
+    \\
+    \\
+\\
+\end{align*}
+
+\subsection{Ref}
+\begin{align*}
+    \tag{\textsc{S-Source}}
+    \inference[]{T_1 <: T_2 & \{X_i\}^{i\in 1...n} \subseteq   \{Z_j\}^{j\in 1...m}}{Source<X_i^{i\in 1...n}>T_1 <: Source<Z_j^{j\in 1...m}>T_2}
+    \\
+    \\
+    \tag{\textsc{S-Sink}}
+    \inference[]{T_2 <: T_1 & \{X_i\}^{i\in 1...n} \subseteq   \{Z_j\}^{j\in 1...m}}{Sink<X_i^{i\in 1...n}>T_1 <: Sink<X_j^{j\in 1...m}>T_2}
+    \\
+    \\
+    \tag{\textsc{S-RefSource}}
+    \inference[]{T_1<:T_2 & \{X_i\}^{i\in 1...n} \subseteq   \{Z_j\}^{j\in 1...m}}{
+    Ref<X_i^{i\in 1...n}>T_1 <: Source<X_i^{i\in 1...n}>T_1}
+    \\
+    \\
+    \tag{\textsc{S-RefSink}}
+    \inference[]{T_2<:T_1 & \{X_i\}^{i\in 1...n} \subseteq   \{Z_j\}^{j\in 1...m}}
+    {Ref<X_i^{i\in 1...n}>T_1 <: Sink<X_i^{i\in 1...n}>T_1}
+    \\
+    \\
+\end{align*}
+\subsection{Thread}
+\begin{align*}
+    \tag {\textsc{S-Thread}}
+    \inference[]{T_1 <: T_2}{ Thread~T_1~<:~Thread~T_2}
+\end{align*}
+
+\section{Algorithmic Typing Rules}
+
+
+\section{Evaluation Rules}
+
+\subsection{Threads}
+\begin{align*}
+    \tag{\textsc{E-Thread}}
+    \inference[]{threads = \{t_i\}^{i\in 1...n} & <t_{id},\mu,Th,L> -> <t_{id}',\mu',Th',L'> & id' = next(id,threads')}{[Th,\mu,id,L]->[Th',\mu',id',L']}
+    \\
+    \\
+\end{align*}
+\subsection{Wait}
+\begin{align*}
+    \tag {\textsc{E-Wait}}
+    \inference{threads(p) = v}{<wait~p,\mu,Th,L> -> <v,\mu,Th\backslash\{p\},L>}
+    \\
+    \\
+    \tag {\textsc{E-Fork}}
+    {<fork\ t,\mu,Th, L>-> <p ,\mu, Th, L>}
+\end{align*}
+
+\subsection{Mutex}
+\begin{align*}
     \tag {\textsc{E-RefMutex}}
     \inference[]{t_1->t_1'}{ref<x> t_1 -> ref<x> t_1'}
-    \\
-    \\
-    \tag {\textsc{T-DerefMutex}}
-    \inference[]{\Gamma|\lock \vdash t_1:Ref<X>T & X\in \lock}{\Gamma|\lock\vdash !t_1:T}
-    \\
-    \\
-    \tag {\textsc{T-AssignMutex}}
-    \inference[]{\Gamma|\lock \vdash t_1:Ref<X>T & \Gamma \vdash t_2:T & X\in \lock}{\Gamma|\lock\vdash t_1 := t_2:Unit}
     \\
     \\
     \tag {\textsc{E-RefMutex}}
@@ -156,8 +233,8 @@
     \\
     \tag {\textsc{E-Assign1}}
     \inference[]{t_1|\mu->t_1'|\mu '}{t_1:=t_2|\mu -> t_1':=t_2|\mu}
-\end{align*}w
-\begin{align*}
+    \\
+    \\
     \tag {\textsc{E-Assign2}}
     \inference[]{t_2|\mu->t_2'|\mu '}{v:=t_2|\mu -> v:=t_2'|\mu}
     \\
@@ -169,23 +246,18 @@
     \tag {\textsc{S-RefMutex}}
     \inference[]{\Gamma|\lock \vdash t_1:Ref<X>T & \Gamma \vdash t_2:T & X\in \lock}{\Gamma|\lock\vdash t_1 := t_2:Unit}
 \end{align*}
-
-\subsection{Lock}
 \begin{align*}
-\tag{\textsc{T-Lock}}
-\inference[]{tail(\lock)<_{lex}X & \Gamma|\lock \vdash t_1:Mutex~X 
-& \Gamma|(\lock,X) \vdash t_2:T}{lock~t_1~t_2:T}
-\\
-\\
-\tag{\textsc{E-Lock1}}
-\inference[]{t_1->t_1'}{lock~t_1~t_2 -> lock~t_1'~t_2}
-\\
-\\
-\tag{\textsc{E-Lock2}}
-\inference[]{t_2->t_2'}{lock~v_1~t_2 -> lock~v_1~t_2'}
-\\
-\\
-\tag{\textsc{E-LockV}}lock~v_1~v_2 -> v_2
-\end{align*}
-
+    \tag{\textsc{E-Lock1}}
+    \inference[]{t_1->t_1'}{lock~t_1~t_2 -> lock~t_1'~t_2}
+    \\
+    \\
+    \tag{\textsc{E-Lock2}}
+    \inference[]{t_2->t_2'}{lock~v_1~t_2 -> lock~v_1~t_2'}
+    \\
+    \\
+    \tag{\textsc{E-LockV}}lock~v_1~v_2 -> v_2
+    \end{align*}
+    
 \end{document}
+    
+    
