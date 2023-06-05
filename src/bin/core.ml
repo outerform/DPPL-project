@@ -809,7 +809,7 @@ let rec typeof1 (ctx:context) (lst:lockset) (t:term) :ty * string option =
                 error fi "lock isn't acquire before assignment"
             else
               error fi "arguments of := are incompatible"
-        | _ -> error fi "argument of ! is not a Ref or Sink")
+        | _ -> error fi "argument of := is not a Ref or Sink")
   | TmFloat _ -> TyFloat,None
   | TmTimesfloat(fi,t1,t2) ->
     let tyT1,al1 = typeof1 ctx lst t1 in
