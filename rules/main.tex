@@ -198,7 +198,7 @@
 \subsection{Thread}
 \begin{align*}
     \tag {\textsc{S-Thread}}
-    \inference[]{T_1 <: T_2}{ Thread~T_1~<:~Thread~T_2}
+    \inference[]{T_1 <: T_2 & fpid_1  = fpid_2}{ Thread<fpid_1>T_1~<:~Thread<fpid_2>T_2}
 \end{align*}
 
 \section{Algorithmic Typing Rules}

@@ -19,6 +19,13 @@ val existlock : string -> lockset -> bool
 val sizelockset: lockset -> int
 val equallockset: lockset -> lockset -> bool
 
+(* threadid *)
+type threadid = int
+val rootthreadid : threadid
+val pid_allocator : threadid ref
+val newpid : unit -> threadid
+
+
 (* Data type definitions *)
 type ty =
     TyBot
@@ -38,7 +45,7 @@ type ty =
   | TyNat
   (* New type *)
   (* | TyRefMutex of string * ty *)
-  | TyThread of ty
+  | TyThread of ty * threadid
   | TyMutex of string
   (* | TySourceMutex of string * ty *)
   (* | TySinkMutex of string * ty *)

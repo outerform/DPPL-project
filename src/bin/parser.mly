@@ -189,8 +189,8 @@ Type :
         { fun ctx -> TySource($3, $5 ctx) }
   | SSINK LT MutexFields GT AType
         { fun ctx -> TySink($3, $5 ctx) }
-  | THREAD AType
-        { fun ctx -> TyThread($2 ctx) }
+  | THREAD AType INTV
+        { fun ctx -> TyThread($2 ctx, $3.v)  }
 
 /* Atomic types are those that never need extra parentheses */
 AType :

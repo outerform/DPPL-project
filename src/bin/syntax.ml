@@ -26,6 +26,19 @@ let existlock = StringSet.mem
 let sizelockset = StringSet.cardinal
 let equallockset = StringSet.equal
 
+
+type threadid = int
+
+let int2threadid (x:int):threadid = x
+
+let rootthreadid = 0
+let pid_allocator:(threadid ref) = ref 0
+
+let newpid ()= 
+  pid_allocator := !pid_allocator + 1;
+  !pid_allocator
+
+
 type ty =
     TyBot
   | TyTop
@@ -44,7 +57,7 @@ type ty =
   | TyNat
   (* New type *)
   (* | TyRefMutex of string * ty *)
-  | TyThread of ty
+  | TyThread of ty * threadid
   | TyMutex of string
   (* | TySourceMutex of string * ty
   | TySinkMutex of string * ty *)
@@ -158,7 +171,7 @@ let tymap onvar c tyT =
   | TySink(lst, tyT1) -> TySink(lst, walk c tyT1)
   | TyVar(x,n) -> onvar c x n
   | TyNat -> TyNat
-  | TyThread(tyT1) -> TyThread(walk c tyT1)
+  | TyThread(tyT1, fpid) -> TyThread(walk c tyT1, fpid)
   | TyMutex(_) as tyT -> tyT
   (* | TyRefMutex(l1,tyT1) -> TyRefMutex(l1,walk c tyT1)
   | TySourceMutex(l1,tyT1) -> TySourceMutex(l1,walk c tyT1)
@@ -355,7 +368,7 @@ let rec printty_Type outer ctx tyT = match tyT with
   | TyRef(lk,tyT) -> pr "Ref"; if sizelockset lk > 0 then printlockset lk; printty_AType false ctx tyT
   | TySource(lk,tyT) -> pr ("Source"); if sizelockset lk > 0 then printlockset lk; printty_AType false ctx tyT
   | TySink(lk,tyT) -> pr "Sink";if sizelockset lk > 0 then printlockset lk; printty_AType false ctx tyT
-  | TyThread(tyT) -> pr "Thread "; printty_AType false ctx tyT
+  | TyThread(tyT,fpid) -> pr "Thread ";pr ("<"^(string_of_int fpid)^">"); printty_AType false ctx tyT
   | tyT -> printty_ArrowType outer ctx tyT
 
 
