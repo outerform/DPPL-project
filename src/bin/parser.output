@@ -19,7 +19,7 @@
   14       | RREF LT MutexFields GT AType
   15       | SSOURCE LT MutexFields GT AType
   16       | SSINK LT MutexFields GT AType
-  17       | THREAD AType
+  17       | THREAD AType INTV
 
   18  AType : LPAREN Type RPAREN
   19        | TBOT
@@ -1922,7 +1922,7 @@ state 101
 
 
 state 102
-	Type : THREAD . AType  (17)
+	Type : THREAD . AType INTV  (17)
 
 	TBOT  shift 92
 	TTOP  shift 93
@@ -2622,9 +2622,10 @@ state 145
 
 
 state 146
-	Type : THREAD AType .  (17)
+	Type : THREAD AType . INTV  (17)
 
-	.  reduce 17
+	INTV  shift 182
+	.  error
 
 
 state 147
@@ -2636,7 +2637,7 @@ state 147
 state 148
 	FieldType : LCID . COLON Type  (63)
 
-	COLON  shift 182
+	COLON  shift 183
 	.  error
 
 
@@ -2649,7 +2650,7 @@ state 149
 state 150
 	AType : LCURLY FieldTypes . RCURLY  (26)
 
-	RCURLY  shift 183
+	RCURLY  shift 184
 	.  error
 
 
@@ -2663,7 +2664,7 @@ state 152
 	NEFieldTypes : FieldType .  (61)
 	NEFieldTypes : FieldType . COMMA NEFieldTypes  (62)
 
-	COMMA  shift 184
+	COMMA  shift 185
 	GT  reduce 61
 	RCURLY  reduce 61
 
@@ -2671,14 +2672,14 @@ state 152
 state 153
 	AType : LPAREN Type . RPAREN  (18)
 
-	RPAREN  shift 185
+	RPAREN  shift 186
 	.  error
 
 
 state 154
 	AType : LT FieldTypes . GT  (23)
 
-	GT  shift 186
+	GT  shift 187
 	.  error
 
 
@@ -2704,14 +2705,14 @@ state 156
 	LT  shift 107
 	.  error
 
-	ArrowType  goto 187
+	ArrowType  goto 188
 	AType  goto 110
 
 
 state 157
 	ArrowType : AType LSQUARE . UCID RSQUARE ARROW ArrowType  (31)
 
-	UCID  shift 188
+	UCID  shift 189
 	.  error
 
 
@@ -2722,7 +2723,7 @@ state 158
 	UCID  shift 82
 	.  error
 
-	MutexFields  goto 189
+	MutexFields  goto 190
 
 
 state 159
@@ -2764,7 +2765,7 @@ state 164
 state 165
 	ATerm : LT LCID EQ Term . GT AS Type  (74)
 
-	GT  shift 190
+	GT  shift 191
 	.  error
 
 
@@ -2800,7 +2801,7 @@ state 166
 	LT  shift 32
 	.  error
 
-	Term  goto 191
+	Term  goto 192
 	AppTerm  goto 36
 	PathTerm  goto 37
 	AscribeTerm  goto 38
@@ -2816,14 +2817,14 @@ state 167
 state 168
 	Term : LAMBDA LT MutexFields GT LCID . COLON Type DOT Term  (44)
 
-	COLON  shift 192
+	COLON  shift 193
 	.  error
 
 
 state 169
 	Term : LAMBDA LT MutexFields GT USCORE . COLON Type DOT Term  (45)
 
-	COLON  shift 193
+	COLON  shift 194
 	.  error
 
 
@@ -2859,7 +2860,7 @@ state 170
 	LT  shift 32
 	.  error
 
-	Term  goto 194
+	Term  goto 195
 	AppTerm  goto 36
 	PathTerm  goto 37
 	AscribeTerm  goto 38
@@ -2901,7 +2902,7 @@ state 171
 state 172
 	Case : LT LCID . EQ LCID GT DDARROW AppTerm  (85)
 
-	EQ  shift 195
+	EQ  shift 196
 	.  error
 
 
@@ -2911,7 +2912,7 @@ state 173
 	LT  shift 133
 	.  error
 
-	Cases  goto 196
+	Cases  goto 197
 	Case  goto 135
 
 
@@ -2947,7 +2948,7 @@ state 174
 	LT  shift 32
 	.  error
 
-	Term  goto 197
+	Term  goto 198
 	AppTerm  goto 36
 	PathTerm  goto 37
 	AscribeTerm  goto 38
@@ -2986,7 +2987,7 @@ state 175
 	LT  shift 32
 	.  error
 
-	Term  goto 198
+	Term  goto 199
 	AppTerm  goto 36
 	PathTerm  goto 37
 	AscribeTerm  goto 38
@@ -3025,7 +3026,7 @@ state 176
 	LT  shift 32
 	.  error
 
-	Term  goto 199
+	Term  goto 200
 	AppTerm  goto 36
 	PathTerm  goto 37
 	AscribeTerm  goto 38
@@ -3064,7 +3065,7 @@ state 177
 	LT  shift 32
 	.  error
 
-	Term  goto 200
+	Term  goto 201
 	AppTerm  goto 36
 	PathTerm  goto 37
 	AscribeTerm  goto 38
@@ -3088,25 +3089,31 @@ state 178
 state 179
 	Type : RREF LT MutexFields . GT AType  (14)
 
-	GT  shift 201
+	GT  shift 202
 	.  error
 
 
 state 180
 	Type : SSOURCE LT MutexFields . GT AType  (15)
 
-	GT  shift 202
+	GT  shift 203
 	.  error
 
 
 state 181
 	Type : SSINK LT MutexFields . GT AType  (16)
 
-	GT  shift 203
+	GT  shift 204
 	.  error
 
 
 state 182
+	Type : THREAD AType INTV .  (17)
+
+	.  reduce 17
+
+
+state 183
 	FieldType : LCID COLON . Type  (63)
 
 	TBOT  shift 92
@@ -3127,18 +3134,18 @@ state 182
 	LT  shift 107
 	.  error
 
-	Type  goto 204
+	Type  goto 205
 	ArrowType  goto 109
 	AType  goto 110
 
 
-state 183
+state 184
 	AType : LCURLY FieldTypes RCURLY .  (26)
 
 	.  reduce 26
 
 
-state 184
+state 185
 	NEFieldTypes : FieldType COMMA . NEFieldTypes  (62)
 
 	TBOT  shift 92
@@ -3163,84 +3170,58 @@ state 184
 	Type  goto 149
 	ArrowType  goto 109
 	AType  goto 110
-	NEFieldTypes  goto 205
+	NEFieldTypes  goto 206
 	FieldType  goto 152
 
 
-state 185
+state 186
 	AType : LPAREN Type RPAREN .  (18)
 
 	.  reduce 18
 
 
-state 186
+state 187
 	AType : LT FieldTypes GT .  (23)
 
 	.  reduce 23
 
 
-state 187
+state 188
 	ArrowType : AType ARROW ArrowType .  (29)
 
 	.  reduce 29
 
 
-state 188
+state 189
 	ArrowType : AType LSQUARE UCID . RSQUARE ARROW ArrowType  (31)
 
-	RSQUARE  shift 206
-	.  error
-
-
-state 189
-	ArrowType : AType LT MutexFields . GT ARROW ArrowType  (30)
-	ArrowType : AType LT MutexFields . GT LSQUARE UCID RSQUARE ARROW ArrowType  (32)
-
-	GT  shift 207
+	RSQUARE  shift 207
 	.  error
 
 
 state 190
-	ATerm : LT LCID EQ Term GT . AS Type  (74)
+	ArrowType : AType LT MutexFields . GT ARROW ArrowType  (30)
+	ArrowType : AType LT MutexFields . GT LSQUARE UCID RSQUARE ARROW ArrowType  (32)
 
-	AS  shift 208
+	GT  shift 208
 	.  error
 
 
 state 191
+	ATerm : LT LCID EQ Term GT . AS Type  (74)
+
+	AS  shift 209
+	.  error
+
+
+state 192
 	Term : LAMBDA LCID COLON Type DOT Term .  (35)
 
 	.  reduce 35
 
 
-state 192
-	Term : LAMBDA LT MutexFields GT LCID COLON . Type DOT Term  (44)
-
-	TBOT  shift 92
-	TTOP  shift 93
-	USTRING  shift 94
-	UUNIT  shift 95
-	RREF  shift 96
-	BOOL  shift 97
-	SSOURCE  shift 98
-	SSINK  shift 99
-	UFLOAT  shift 100
-	NAT  shift 101
-	THREAD  shift 102
-	MUTEX  shift 103
-	UCID  shift 104
-	LCURLY  shift 105
-	LPAREN  shift 106
-	LT  shift 107
-	.  error
-
-	Type  goto 209
-	ArrowType  goto 109
-	AType  goto 110
-
-
 state 193
-	Term : LAMBDA LT MutexFields GT USCORE COLON . Type DOT Term  (45)
+	Term : LAMBDA LT MutexFields GT LCID COLON . Type DOT Term  (44)
 
 	TBOT  shift 92
 	TTOP  shift 93
@@ -3266,70 +3247,77 @@ state 193
 
 
 state 194
-	Term : LAMBDA USCORE COLON Type DOT Term .  (36)
-
-	.  reduce 36
-
-
-state 195
-	Case : LT LCID EQ . LCID GT DDARROW AppTerm  (85)
-
-	LCID  shift 211
-	.  error
-
-
-state 196
-	Cases : Case VBAR Cases .  (84)
-
-	.  reduce 84
-
-
-state 197
-	Term : LET LCID EQ Term IN Term .  (39)
-
-	.  reduce 39
-
-
-state 198
-	Term : LET USCORE EQ Term IN Term .  (40)
-
-	.  reduce 40
-
-
-state 199
-	Term : LETREC LCID COLON Type EQ Term . IN Term  (41)
-
-	IN  shift 212
-	.  error
-
-
-state 200
-	Term : IF Term THEN Term ELSE Term .  (42)
-
-	.  reduce 42
-
-
-state 201
-	Type : RREF LT MutexFields GT . AType  (14)
+	Term : LAMBDA LT MutexFields GT USCORE COLON . Type DOT Term  (45)
 
 	TBOT  shift 92
 	TTOP  shift 93
 	USTRING  shift 94
 	UUNIT  shift 95
+	RREF  shift 96
 	BOOL  shift 97
+	SSOURCE  shift 98
+	SSINK  shift 99
 	UFLOAT  shift 100
 	NAT  shift 101
+	THREAD  shift 102
+	MUTEX  shift 103
 	UCID  shift 104
 	LCURLY  shift 105
 	LPAREN  shift 106
 	LT  shift 107
 	.  error
 
-	AType  goto 213
+	Type  goto 211
+	ArrowType  goto 109
+	AType  goto 110
+
+
+state 195
+	Term : LAMBDA USCORE COLON Type DOT Term .  (36)
+
+	.  reduce 36
+
+
+state 196
+	Case : LT LCID EQ . LCID GT DDARROW AppTerm  (85)
+
+	LCID  shift 212
+	.  error
+
+
+state 197
+	Cases : Case VBAR Cases .  (84)
+
+	.  reduce 84
+
+
+state 198
+	Term : LET LCID EQ Term IN Term .  (39)
+
+	.  reduce 39
+
+
+state 199
+	Term : LET USCORE EQ Term IN Term .  (40)
+
+	.  reduce 40
+
+
+state 200
+	Term : LETREC LCID COLON Type EQ Term . IN Term  (41)
+
+	IN  shift 213
+	.  error
+
+
+state 201
+	Term : IF Term THEN Term ELSE Term .  (42)
+
+	.  reduce 42
 
 
 state 202
-	Type : SSOURCE LT MutexFields GT . AType  (15)
+	Type : RREF LT MutexFields GT . AType  (14)
 
 	TBOT  shift 92
 	TTOP  shift 93
@@ -3348,7 +3336,7 @@ state 202
 
 
 state 203
-	Type : SSINK LT MutexFields GT . AType  (16)
+	Type : SSOURCE LT MutexFields GT . AType  (15)
 
 	TBOT  shift 92
 	TTOP  shift 93
@@ -3367,34 +3355,53 @@ state 203
 
 
 state 204
+	Type : SSINK LT MutexFields GT . AType  (16)
+
+	TBOT  shift 92
+	TTOP  shift 93
+	USTRING  shift 94
+	UUNIT  shift 95
+	BOOL  shift 97
+	UFLOAT  shift 100
+	NAT  shift 101
+	UCID  shift 104
+	LCURLY  shift 105
+	LPAREN  shift 106
+	LT  shift 107
+	.  error
+
+	AType  goto 216
+
+
+state 205
 	FieldType : LCID COLON Type .  (63)
 
 	.  reduce 63
 
 
-state 205
+state 206
 	NEFieldTypes : FieldType COMMA NEFieldTypes .  (62)
 
 	.  reduce 62
 
 
-state 206
+state 207
 	ArrowType : AType LSQUARE UCID RSQUARE . ARROW ArrowType  (31)
 
-	ARROW  shift 216
-	.  error
-
-
-state 207
-	ArrowType : AType LT MutexFields GT . ARROW ArrowType  (30)
-	ArrowType : AType LT MutexFields GT . LSQUARE UCID RSQUARE ARROW ArrowType  (32)
-
 	ARROW  shift 217
-	LSQUARE  shift 218
 	.  error
 
 
 state 208
+	ArrowType : AType LT MutexFields GT . ARROW ArrowType  (30)
+	ArrowType : AType LT MutexFields GT . LSQUARE UCID RSQUARE ARROW ArrowType  (32)
+
+	ARROW  shift 218
+	LSQUARE  shift 219
+	.  error
+
+
+state 209
 	ATerm : LT LCID EQ Term GT AS . Type  (74)
 
 	TBOT  shift 92
@@ -3415,33 +3422,33 @@ state 208
 	LT  shift 107
 	.  error
 
-	Type  goto 219
+	Type  goto 220
 	ArrowType  goto 109
 	AType  goto 110
 
 
-state 209
-	Term : LAMBDA LT MutexFields GT LCID COLON Type . DOT Term  (44)
-
-	DOT  shift 220
-	.  error
-
-
 state 210
-	Term : LAMBDA LT MutexFields GT USCORE COLON Type . DOT Term  (45)
+	Term : LAMBDA LT MutexFields GT LCID COLON Type . DOT Term  (44)
 
 	DOT  shift 221
 	.  error
 
 
 state 211
-	Case : LT LCID EQ LCID . GT DDARROW AppTerm  (85)
+	Term : LAMBDA LT MutexFields GT USCORE COLON Type . DOT Term  (45)
 
-	GT  shift 222
+	DOT  shift 222
 	.  error
 
 
 state 212
+	Case : LT LCID EQ LCID . GT DDARROW AppTerm  (85)
+
+	GT  shift 223
+	.  error
+
+
+state 213
 	Term : LETREC LCID COLON Type EQ Term IN . Term  (41)
 
 	LAMBDA  shift 4
@@ -3473,53 +3480,33 @@ state 212
 	LT  shift 32
 	.  error
 
-	Term  goto 223
+	Term  goto 224
 	AppTerm  goto 36
 	PathTerm  goto 37
 	AscribeTerm  goto 38
 	ATerm  goto 39
 
 
-state 213
+state 214
 	Type : RREF LT MutexFields GT AType .  (14)
 
 	.  reduce 14
 
 
-state 214
+state 215
 	Type : SSOURCE LT MutexFields GT AType .  (15)
 
 	.  reduce 15
 
 
-state 215
+state 216
 	Type : SSINK LT MutexFields GT AType .  (16)
 
 	.  reduce 16
 
 
-state 216
-	ArrowType : AType LSQUARE UCID RSQUARE ARROW . ArrowType  (31)
-
-	TBOT  shift 92
-	TTOP  shift 93
-	USTRING  shift 94
-	UUNIT  shift 95
-	BOOL  shift 97
-	UFLOAT  shift 100
-	NAT  shift 101
-	UCID  shift 104
-	LCURLY  shift 105
-	LPAREN  shift 106
-	LT  shift 107
-	.  error
-
-	ArrowType  goto 224
-	AType  goto 110
-
-
 state 217
-	ArrowType : AType LT MutexFields GT ARROW . ArrowType  (30)
+	ArrowType : AType LSQUARE UCID RSQUARE ARROW . ArrowType  (31)
 
 	TBOT  shift 92
 	TTOP  shift 93
@@ -3539,59 +3526,40 @@ state 217
 
 
 state 218
-	ArrowType : AType LT MutexFields GT LSQUARE . UCID RSQUARE ARROW ArrowType  (32)
+	ArrowType : AType LT MutexFields GT ARROW . ArrowType  (30)
 
-	UCID  shift 226
+	TBOT  shift 92
+	TTOP  shift 93
+	USTRING  shift 94
+	UUNIT  shift 95
+	BOOL  shift 97
+	UFLOAT  shift 100
+	NAT  shift 101
+	UCID  shift 104
+	LCURLY  shift 105
+	LPAREN  shift 106
+	LT  shift 107
 	.  error
+
+	ArrowType  goto 226
+	AType  goto 110
 
 
 state 219
+	ArrowType : AType LT MutexFields GT LSQUARE . UCID RSQUARE ARROW ArrowType  (32)
+
+	UCID  shift 227
+	.  error
+
+
+state 220
 	ATerm : LT LCID EQ Term GT AS Type .  (74)
 
 	.  reduce 74
 
 
-state 220
-	Term : LAMBDA LT MutexFields GT LCID COLON Type DOT . Term  (44)
-
-	LAMBDA  shift 4
-	UNIT  shift 5
-	REF  shift 6
-	CASE  shift 7
-	LET  shift 8
-	FIX  shift 9
-	LETREC  shift 10
-	IF  shift 11
-	TRUE  shift 12
-	FALSE  shift 13
-	TIMESFLOAT  shift 14
-	SUCC  shift 15
-	PRED  shift 16
-	ISZERO  shift 17
-	INERT  shift 18
-	ACQUIRE  shift 19
-	FORK  shift 20
-	WAIT  shift 21
-	MUTEX  shift 22
-	LCID  shift 44
-	INTV  shift 25
-	FLOATV  shift 26
-	STRINGV  shift 27
-	BANG  shift 28
-	LCURLY  shift 30
-	LPAREN  shift 31
-	LT  shift 32
-	.  error
-
-	Term  goto 227
-	AppTerm  goto 36
-	PathTerm  goto 37
-	AscribeTerm  goto 38
-	ATerm  goto 39
-
-
 state 221
-	Term : LAMBDA LT MutexFields GT USCORE COLON Type DOT . Term  (45)
+	Term : LAMBDA LT MutexFields GT LCID COLON Type DOT . Term  (44)
 
 	LAMBDA  shift 4
 	UNIT  shift 5
@@ -3630,50 +3598,89 @@ state 221
 
 
 state 222
-	Case : LT LCID EQ LCID GT . DDARROW AppTerm  (85)
+	Term : LAMBDA LT MutexFields GT USCORE COLON Type DOT . Term  (45)
 
-	DDARROW  shift 229
+	LAMBDA  shift 4
+	UNIT  shift 5
+	REF  shift 6
+	CASE  shift 7
+	LET  shift 8
+	FIX  shift 9
+	LETREC  shift 10
+	IF  shift 11
+	TRUE  shift 12
+	FALSE  shift 13
+	TIMESFLOAT  shift 14
+	SUCC  shift 15
+	PRED  shift 16
+	ISZERO  shift 17
+	INERT  shift 18
+	ACQUIRE  shift 19
+	FORK  shift 20
+	WAIT  shift 21
+	MUTEX  shift 22
+	LCID  shift 44
+	INTV  shift 25
+	FLOATV  shift 26
+	STRINGV  shift 27
+	BANG  shift 28
+	LCURLY  shift 30
+	LPAREN  shift 31
+	LT  shift 32
 	.  error
+
+	Term  goto 229
+	AppTerm  goto 36
+	PathTerm  goto 37
+	AscribeTerm  goto 38
+	ATerm  goto 39
 
 
 state 223
+	Case : LT LCID EQ LCID GT . DDARROW AppTerm  (85)
+
+	DDARROW  shift 230
+	.  error
+
+
+state 224
 	Term : LETREC LCID COLON Type EQ Term IN Term .  (41)
 
 	.  reduce 41
 
 
-state 224
+state 225
 	ArrowType : AType LSQUARE UCID RSQUARE ARROW ArrowType .  (31)
 
 	.  reduce 31
 
 
-state 225
+state 226
 	ArrowType : AType LT MutexFields GT ARROW ArrowType .  (30)
 
 	.  reduce 30
 
 
-state 226
+state 227
 	ArrowType : AType LT MutexFields GT LSQUARE UCID . RSQUARE ARROW ArrowType  (32)
 
-	RSQUARE  shift 230
+	RSQUARE  shift 231
 	.  error
 
 
-state 227
+state 228
 	Term : LAMBDA LT MutexFields GT LCID COLON Type DOT Term .  (44)
 
 	.  reduce 44
 
 
-state 228
+state 229
 	Term : LAMBDA LT MutexFields GT USCORE COLON Type DOT Term .  (45)
 
 	.  reduce 45
 
 
-state 229
+state 230
 	Case : LT LCID EQ LCID GT DDARROW . AppTerm  (85)
 
 	UNIT  shift 5
@@ -3699,20 +3706,20 @@ state 229
 	LT  shift 32
 	.  error
 
-	AppTerm  goto 231
+	AppTerm  goto 232
 	PathTerm  goto 37
 	AscribeTerm  goto 38
 	ATerm  goto 39
 
 
-state 230
+state 231
 	ArrowType : AType LT MutexFields GT LSQUARE UCID RSQUARE . ARROW ArrowType  (32)
 
-	ARROW  shift 232
+	ARROW  shift 233
 	.  error
 
 
-state 231
+state 232
 	AppTerm : AppTerm . PathTerm  (47)
 	Case : LT LCID EQ LCID GT DDARROW AppTerm .  (85)
 
@@ -3745,7 +3752,7 @@ state 231
 	ATerm  goto 39
 
 
-state 232
+state 233
 	ArrowType : AType LT MutexFields GT LSQUARE UCID RSQUARE ARROW . ArrowType  (32)
 
 	TBOT  shift 92
@@ -3761,11 +3768,11 @@ state 232
 	LT  shift 107
 	.  error
 
-	ArrowType  goto 233
+	ArrowType  goto 234
 	AType  goto 110
 
 
-state 233
+state 234
 	ArrowType : AType LT MutexFields GT LSQUARE UCID RSQUARE ARROW ArrowType .  (32)
 
 	.  reduce 32
@@ -3776,4 +3783,4 @@ State 178 contains 1 shift/reduce conflict, 1 reduce/reduce conflict.
 
 
 85 terminals, 24 nonterminals
-97 grammar rules, 234 states
+97 grammar rules, 235 states

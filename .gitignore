@@ -27,3 +27,15 @@ setup.log
 
 # Local OPAM switch
 _opam/
+
+#Latex
+*.toc
+*.synctex(busy)
+*.aux
+*.bbl
+*.blg
+*.log
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.out

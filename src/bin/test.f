@@ -7,3 +7,9 @@ t3 t4;
 
 buf = ref<X> 0;
 acquire mutex<X> in !buf;
+x = mutex<A>;
+y = mutex<B>;
+c = ref<A>1;
+t = acquire x in c := 2;
+let x = acquire x in !c in 
+x;
