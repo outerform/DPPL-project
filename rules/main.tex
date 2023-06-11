@@ -91,15 +91,15 @@
 
 \begin{align*}
     \tag {\textsc{T-Fork}}
-    \inference[]{\Gamma|\Sigma|\lock\vdash t:~T}{ \Gamma|\Sigma|\lock\vdash fork \{~t~\} :~Thread~T} 
+    \inference[]{(\Gamma,tid_2)|\Sigma|\lock\vdash t:~T & lasttid(\Gamma) = tid_1}{ \Gamma|\Sigma|\lock\vdash fork \{t~,tid_2\} :~Thread[tid_1]~T} 
     \\
     \\
     \tag {\textsc{T-Wait}}
-    \inference[]{\Gamma|\Sigma|\lock\vdash t:~Thread~T}{ \Gamma|\Sigma|\lock\vdash wait ~t~ :~T}
+    \inference[]{\Gamma|\Sigma|\lock\vdash t:~Thread[tid]~T & lasttid(\Gamma) = tid\\\lock = \emptyset}{ \Gamma|\Sigma|\lock\vdash wait ~t~ :~T}
     \\
     \\
     \tag {\textsc{T-Thread}}
-    \inference[]{\Gamma|\Sigma|\lock\vdash \Sigma(p):~T}{\Gamma|\Sigma|\lock\vdash p:Thread T}
+    \inference[]{\Gamma|\Sigma|\lock\vdash \Sigma(p):~T}{\Gamma|\Sigma|\lock\vdash <p,tid>:Thread<tid> T}
 \end{align*}
 
 \subsection{Mutex}
@@ -209,8 +209,8 @@
 \subsection{Threads}
 \begin{align*}
     \tag{\textsc{E-Thread}}
-    \inference[]{threads = \{<t_i,L^t_i>\}^{i\in 1...n} & [t_{id},\mu,Th,L,L^t] -> [t_{id}',\mu',Th',L',{L^t}']\\
-     id' = next(id,threads') & Th' = {<t_i,L_i^t>^{i\in 1...id-1}}\cup<t_{id}',{L^t}'>\cup{<t_i,L_i^t>^{i\in id+1...n}}}{[Th,\mu,id,L,L^t]->[Th',\mu',id',L',{L^t}']}
+    \inference[]{threads = \{<t_i,L^t_i,tid_i>\}^{i\in 1...n} & [t_{id},\mu,Th,L,L^t] -> [t_{id}',\mu',Th',L',{L^t}']\\
+     id' = next(id,threads') \\ Th' = {<t_i,L_i^t,tid_i>^{i\in 1...id-1}}\cup<t_{id}',{L^t}',tid_{id}>\cup{<t_i,L_i^t,tid_i>^{i\in id+1...n}}}{[Th,\mu,id,L,L^t]->[Th',\mu',id',L',{L^t}']}
     \\
     \\
 \end{align*}
@@ -221,7 +221,7 @@
     \\
     \\
     \tag {\textsc{E-Fork}}
-    {[fork\ t,\mu,Th, l <X_i>^{i\in1...n},L^t]-> [p ,\mu, Th\cup\{<t,\emptyset>\}, L,L^t]}
+    \begin{gathered}[fork\{t,tid_2\},\mu,Th, l <X_i>^{i\in1...n},L^t]\\-> [<p,Tid(current)> ,\mu, Th\cup\{<t,\emptyset,tid_2>\}, L,L^t]\end{gathered}
 \end{align*}
 
 \subsection{Abstraction}
