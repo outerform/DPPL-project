@@ -21,7 +21,7 @@ let rec isval ctx t = match t with
   | t when isnumericval ctx t  -> true
   | TmAbs(_,_,_,_,_) -> true
   | TmRecord(_,fields) -> List.for_all (fun (l,ti) -> isval ctx ti) fields
-  | TmThread(_,_) -> true
+  | TmThreadLoc(_,_) -> true
   | TmMutex(_,_) -> true
   | _ -> false
 
@@ -38,155 +38,227 @@ let updatestore store n v =
     f (n,store)
 let shiftstore i store = List.map (fun t -> termShift i t) store 
 
+type threads = term list  
+let emptythreads = []
+let threadsnumber threads = List.length threads
+let extendthreads threads t = (List.length threads, List.append threads [t])
+let lookupthreads threads l = List.nth threads l
+let updatethreads threads n t =
+  let rec f s = match s with 
+      (0, _::rest) -> t::rest
+    | (n, t'::rest) -> t' :: (f (n-1,rest))
+    | _ -> error dummyinfo "updatethreads: bad index"
+  in
+    f (n,threads)
+
+type thctx = context list  
+let emptythctx = []
+let thctxnumber thctx = List.length thctx
+let extendthctx thctx t = (List.length thctx, List.append thctx [t])
+let lookupthctx thctx l = List.nth thctx l
+let updatethctx thctx n t =
+  let rec f s = match s with 
+      (0, _::rest) -> t::rest
+    | (n, t'::rest) -> t' :: (f (n-1,rest))
+    | _ -> error dummyinfo "updatethctx: bad index"
+  in
+    f (n,thctx)
+
 exception NoRuleApplies
 
-let rec eval1 ctx store t = match t with
+let rec eval1 ctx store threads thctx t = match t with
     TmApp(fi,TmAbs(_,_,_,_,t12),v2) when isval ctx v2 ->
-      termSubstTop v2 t12, store
+      termSubstTop v2 t12, store, threads, thctx
   | TmApp(fi,v1,t2) when isval ctx v1 ->
-      let t2',store' = eval1 ctx store t2 in
-      TmApp(fi, v1, t2'), store'
+      let t2',store', threads', thctx' = eval1 ctx store threads thctx t2 in
+      TmApp(fi, v1, t2'), store', threads', thctx'
   | TmApp(fi,t1,t2) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmApp(fi, t1', t2), store'
+      let t1',store', threads', thctx' = eval1 ctx store threads thctx t1 in
+      TmApp(fi, t1', t2), store', threads', thctx'
   | TmAscribe(_,v1,_) when isval ctx v1 ->
-      v1, store
+      v1, store, threads, thctx
   | TmAscribe(fi,t1,tyT) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmAscribe(fi,t1',tyT), store'
+      let t1',store', threads', thctx' = eval1 ctx store threads thctx t1 in
+      TmAscribe(fi,t1',tyT), store', threads', thctx'
   | TmRef(fi,lst,t1) ->
       if not (isval ctx t1) then
-        let (t1',store') = eval1 ctx store t1
-        in (TmRef(fi,lst,t1'), store')
+        let (t1',store', threads', thctx') = eval1 ctx store threads thctx t1
+        in (TmRef(fi,lst,t1'), store', threads', thctx')
       else
         let (l,store') = extendstore store t1 in
-        (TmLoc(dummyinfo,l), store')
+        (TmLoc(dummyinfo,l), store', threads, thctx)
   | TmDeref(fi,t1) ->
       if not (isval ctx t1) then
-        let (t1',store') = eval1 ctx store t1
-        in (TmDeref(fi,t1'), store')
+        let (t1',store', threads', thctx') = eval1 ctx store threads thctx t1
+        in (TmDeref(fi,t1'), store', threads', thctx')
       else (match t1 with
-            TmLoc(_,l) -> (lookuploc store l, store)
+            TmLoc(_,l) -> (lookuploc store l, store, threads, thctx)
           | _ -> raise NoRuleApplies)
   | TmAssign(fi,t1,t2) ->
       if not (isval ctx t1) then
-        let (t1',store') = eval1 ctx store t1
-        in (TmAssign(fi,t1',t2), store')
+        let (t1',store', threads', thctx') = eval1 ctx store threads thctx t1
+        in (TmAssign(fi,t1',t2), store', threads', thctx')
       else if not (isval ctx t2) then
-        let (t2',store') = eval1 ctx store t2
-        in (TmAssign(fi,t1,t2'), store')
+        let (t2',store', threads', thctx') = eval1 ctx store threads thctx t2
+        in (TmAssign(fi,t1,t2'), store', threads', thctx')
       else (match t1 with
-            TmLoc(_,l) -> (TmUnit(dummyinfo), updatestore store l t2)
+            TmLoc(_,l) -> (TmUnit(dummyinfo), updatestore store l t2, threads, thctx)
           | _ -> raise NoRuleApplies)
   | TmTag(fi,l,t1,tyT) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmTag(fi, l, t1',tyT), store'
+      let t1',store', threads', thctx' = eval1 ctx store threads thctx t1 in
+      TmTag(fi, l, t1',tyT), store', threads', thctx'
   | TmCase(fi,TmTag(_,li,v11,_),branches) when isval ctx v11->
       (try 
          let (x,body) = List.assoc li branches in
-         termSubstTop v11 body, store
+         termSubstTop v11 body, store, threads, thctx
        with Not_found -> raise NoRuleApplies)
   | TmCase(fi,t1,branches) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmCase(fi, t1', branches), store'
+      let t1',store', threads', thctx' = eval1 ctx store threads thctx t1 in
+      TmCase(fi, t1', branches), store', threads', thctx'
   | TmLet(fi,x,v1,t2) when isval ctx v1 ->
-      termSubstTop v1 t2, store 
+      termSubstTop v1 t2, store, threads, thctx
   | TmLet(fi,x,t1,t2) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmLet(fi, x, t1', t2), store' 
+      let t1',store', threads', thctx' = eval1 ctx store threads thctx t1 in
+      TmLet(fi, x, t1', t2), store', threads', thctx'
   | TmFix(fi,v1) as t when isval ctx v1 ->
       (match v1 with
-         TmAbs(_,_,_,_,t12) -> termSubstTop t t12, store
+         TmAbs(_,_,_,_,t12) -> termSubstTop t t12, store, threads, thctx
        | _ -> raise NoRuleApplies)
   | TmFix(fi,t1) ->
-      let t1',store' = eval1 ctx store t1
-      in TmFix(fi,t1'), store'
+      let t1',store', threads', thctx' = eval1 ctx store threads thctx t1
+      in TmFix(fi,t1'), store', threads', thctx'
   | TmIf(_,TmTrue(_),t2,t3) ->
-      t2, store
+      t2, store, threads, thctx
   | TmIf(_,TmFalse(_),t2,t3) ->
-      t3, store
+      t3, store, threads, thctx
   | TmIf(fi,t1,t2,t3) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmIf(fi, t1', t2, t3), store'
+      let t1',store',threads',thctx' = eval1 ctx store threads thctx t1 in
+      TmIf(fi, t1', t2, t3), store', threads', thctx'
   | TmTimesfloat(fi,TmFloat(_,f1),TmFloat(_,f2)) ->
-      TmFloat(fi, f1 *. f2), store
+      TmFloat(fi, f1 *. f2), store, threads, thctx
   | TmTimesfloat(fi,(TmFloat(_,f1) as t1),t2) ->
-      let t2',store' = eval1 ctx store t2 in
-      TmTimesfloat(fi,t1,t2') , store'
+      let t2',store', threads', thctx' = eval1 ctx store threads thctx t2 in
+      TmTimesfloat(fi,t1,t2') , store', threads', thctx'
   | TmTimesfloat(fi,t1,t2) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmTimesfloat(fi,t1',t2) , store'
+      let t1',store', threads', thctx' = eval1 ctx store threads thctx t1 in
+      TmTimesfloat(fi,t1',t2) , store', threads', thctx'
   | TmVar(fi,n,_) ->
       (match getbinding fi ctx n with
-          TmAbbBind(t,_) -> t,store 
+          TmAbbBind(t,_) -> t,store,threads,thctx
         | _ -> raise NoRuleApplies)
   | TmRecord(fi,fields) ->
       let rec evalafield l = match l with 
         [] -> raise NoRuleApplies
       | (l,vi)::rest when isval ctx vi -> 
-          let rest',store' = evalafield rest in
-          (l,vi)::rest', store'
+          let rest',store',threads',thctx' = evalafield rest in
+          (l,vi)::rest', store', threads', thctx'
       | (l,ti)::rest -> 
-          let ti',store' = eval1 ctx store ti in
-          (l, ti')::rest, store'
-      in let fields',store' = evalafield fields in
-      TmRecord(fi, fields'), store'
+          let ti',store',threads',thctx' = eval1 ctx store threads thctx ti in
+          (l, ti')::rest, store', threads', thctx'
+      in let fields',store',threads',thctx' = evalafield fields in
+      TmRecord(fi, fields'), store', threads', thctx'
   | TmProj(fi, TmRecord(_, fields), l) ->
-      (try List.assoc l fields, store
+      (try List.assoc l fields, store, threads, thctx
        with Not_found -> raise NoRuleApplies)
   | TmProj(fi, t1, l) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmProj(fi, t1', l), store'
+      let t1',store',threads',thctx' = eval1 ctx store threads thctx t1 in
+      TmProj(fi, t1', l), store', threads, thctx
   | TmSucc(fi,t1) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmSucc(fi, t1'), store'
+      let t1',store',threads',thctx' = eval1 ctx store threads thctx t1 in
+      TmSucc(fi, t1'), store', threads', thctx'
   | TmPred(_,TmZero(_)) ->
-      TmZero(dummyinfo), store
+      TmZero(dummyinfo), store, threads, thctx
   | TmPred(_,TmSucc(_,nv1)) when (isnumericval ctx nv1) ->
-      nv1, store
+      nv1, store, threads, thctx
   | TmPred(fi,t1) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmPred(fi, t1'), store'
+      let t1',store',threads',thctx' = eval1 ctx store threads thctx t1 in
+      TmPred(fi, t1'), store', threads', thctx'
   | TmIsZero(_,TmZero(_)) ->
-      TmTrue(dummyinfo), store
+      TmTrue(dummyinfo), store, threads, thctx
   | TmIsZero(_,TmSucc(_,nv1)) when (isnumericval ctx nv1) ->
-      TmFalse(dummyinfo), store
+      TmFalse(dummyinfo), store, threads, thctx
   | TmIsZero(fi,t1) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmIsZero(fi, t1'), store'
-  (* | TmThread(fi,v1) when (isval ctx v1)->
-      TmThread(fi, v1), store
+      let t1',store', threads', thctx' = eval1 ctx store threads thctx t1 in
+      TmIsZero(fi, t1'), store', threads', thctx'
   | TmThread(fi,t1) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmThread(fi, t1'), store' *)
-  | TmWait(_,TmThread(_,v1)) ->
-      v1, store
+      let (l,threads') = extendthreads threads t1 in
+      let (_,thctx') = extendthctx thctx ctx in
+      TmThreadLoc(dummyinfo, l), store, threads', thctx'
   | TmWait(fi,t1) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmWait(fi, t1'), store'
+      if not (isval ctx t1) then
+        let (t1',store', threads', thctx') = eval1 ctx store threads thctx t1
+        in (TmWait(fi,t1'), store', threads', thctx')
+      else (match t1 with
+        TmThreadLoc(_,l) -> (
+          let t2 = lookupthreads threads l in
+          let ctx2 = lookupthctx thctx l in
+            if isval ctx2 t2 then
+              t2, store, threads, thctx
+            else
+              let t2' ,store', threads', thctx' = eval1 ctx2 store threads thctx t2
+              in TmWait(fi,t1), store', updatethreads threads' l t2', thctx')
+        | _ -> raise NoRuleApplies)
   | TmAcquire(_,TmMutex(_,_),v2) when isval ctx v2 ->
-      v2, store
+      v2, store, threads, thctx
   | TmAcquire(fi,v1,t2) when isval ctx v1 ->
-      let t2',store' = eval1 ctx store t2 in
-      TmAcquire(fi, v1, t2'), store'
+      let t2',store',threads',thctx' = eval1 ctx store threads thctx t2 in
+      TmAcquire(fi, v1, t2'), store', threads', thctx'
   | TmAcquire(fi,t1,t2) ->
-      let t1',store' = eval1 ctx store t1 in
-      TmAcquire(fi, t1', t2), store'
+      let t1',store',threads',thctx' = eval1 ctx store threads thctx t1 in
+      TmAcquire(fi, t1', t2), store', threads', thctx'
   | _ -> 
       raise NoRuleApplies
 
-let rec eval ctx store t =
-  try let t',store' = eval1 ctx store t
-      in eval ctx store' t'
-  with NoRuleApplies -> t,store
+(* random permutation list from 0 to n-1 *)
+let random_permutation n =
+  let rec aux acc remaining =
+    match remaining with
+    | [] -> acc
+    | _ ->
+      let rand_index = Random.int (List.length remaining) in
+      let selected_element = List.nth remaining rand_index in
+      let new_remaining = List.filter (fun x -> x <> selected_element) remaining in
+      aux (selected_element :: acc) new_remaining
+  in
+  let initial_list = List.init n (fun x -> x) in
+  aux [] initial_list
+
+let rec evalp store threads thctx p =
+  let random_list = random_permutation (threadsnumber threads) in
+    let rec f lst = (
+      let l = List.hd lst in
+      let ctx = lookupthctx thctx l in
+      let t = lookupthreads threads l in
+      if (not (isval ctx t)) then
+        try let t', store', threads', thctx' = eval1 ctx store threads thctx t
+        in false, t', store', (updatethreads threads' l t'), thctx'
+        with NoRuleApplies -> f (List.tl lst)
+      else if l = p then
+        try let t', store', threads', thctx' = eval1 ctx store threads thctx t
+        in false, t', store', (updatethreads threads' l t'), thctx'
+        with NoRuleApplies -> true, t, store, threads, thctx
+      else 
+        f (List.tl lst))
+  in f random_list
+let shiftstore i store = List.map (fun t -> termShift i t) store 
+
+let rec evalrec store threads thctx p =
+  let fl, t, store', threads', thctx' = evalp store threads thctx p in
+  if fl then t, store, threads, thctx
+  else evalrec store' threads' thctx' p
+
+let eval ctx store threads thctx t =
+  let p, threads' = extendthreads threads t in
+  let _, thctx' = extendthctx thctx ctx in
+  evalrec store threads' thctx' p
 
 (* ------------------------   SUBTYPING  ------------------------ *)
 
-let evalbinding ctx store b = match b with
+let evalbinding ctx store threads thctx b = match b with
     TmAbbBind(t,tyT) ->
-      let t',store' = eval ctx store t in 
-      TmAbbBind(t',tyT), store'
-  | bind -> bind,store
+      let t',store',threads',thctx' = eval ctx store threads thctx t
+      in TmAbbBind(t',tyT), store',threads',thctx'
+  | bind -> bind,store,threads,thctx
 
 let istyabb ctx i = 
   match getbinding dummyinfo ctx i with
@@ -879,6 +951,8 @@ let rec typeof1 (ctx:context) (lst:lockset) (t:term) (pid: threadid) :ty * strin
         | _ -> error fi "argument of acquire is not a mutex")
   | TmTid(_) ->
       TyNat,None
+  | TmThreadLoc(fi,_)-> 
+     error fi "thread location is not allowed in source code"
   (* | TmRefMutex(_,li,t1) ->
       TyRefMutex(li, typeof ctx lst t1) *)
   

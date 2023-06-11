@@ -96,6 +96,7 @@ type term =
   | TmTid of info
   | TmMutex of info * string
   | TmAcquire of info * term * term
+  | TmThreadLoc of info * int
   (* | TmRefMutex of info * string * term *)
 
 
@@ -216,6 +217,7 @@ let tmmap onvar ontype c t =
   | TmTid(fi) as t -> t
   | TmAcquire(fi,t1,t2) -> TmAcquire(fi, walk c t1, walk c t2)
   | TmMutex(fi,_) as t -> t
+  | TmThreadLoc(fi,l) as t -> t
   (* | TmRefMutex(fi,l1, t1) -> TmRefMutex(fi, l1, walk c t1) *)
   in walk c t
 
@@ -333,6 +335,7 @@ let tmInfo t = match t with
   (* | TmSync(fi,_,_) -> fi *)
   | TmMutex(fi,_) -> fi
   | TmAcquire(fi,_,_) -> fi
+  | TmThreadLoc(fi,_) -> fi
 
 (* ---------------------------------------------------------------------- *)
 (* Printing *)
@@ -597,6 +600,8 @@ and printtm_ATerm outer ctx t = match t with
       cbox()
   | TmMutex(_,t) ->
       pr ("lock<"^t^">");
+  | TmThreadLoc(fi, l) ->
+       pr "<thread loc #"; print_int l;pr">"
   | t -> pr "("; printtm_Term outer ctx t; pr ")"
 
 let printtm ctx t = printtm_Term true ctx t 

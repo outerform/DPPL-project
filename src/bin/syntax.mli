@@ -83,6 +83,7 @@ type term =
   | TmTid of info
   | TmMutex of info * string
   | TmAcquire of info * term * term
+  | TmThreadLoc of info * int
   (* | TmRefMutex of info * string * term *)
 
 type binding =
