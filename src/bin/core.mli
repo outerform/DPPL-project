@@ -13,7 +13,9 @@ val emptystore : store
 val shiftstore : int -> store -> store 
 type threads
 val emptythreads: threads
-val eval : context -> store -> threads -> term -> term * store * threads
-val evalbinding : context -> store -> threads -> binding -> binding * store * threads
+type thctx
+val emptythctx:thctx
+val eval : context -> store -> threads -> thctx -> term -> term * store * threads * thctx
+val evalbinding : context -> store -> threads -> thctx -> binding -> binding * store * threads * thctx
 val tyeqv : context -> ty -> ty -> bool
 val simplifyty : context -> ty -> ty

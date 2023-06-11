@@ -71,41 +71,41 @@ let prbindingty ctx lst b = match b with
   | TyVarBind -> ()
   | TyAbbBind(tyT) -> pr ":: *"
 
-let rec process_file f (ctx,lst,store,threads) =
+let rec process_file f (ctx,lst,store,threads,thctx) =
   if List.mem f (!alreadyImported) then
-    (ctx,lst,store,threads)
+    (ctx,lst,store,threads,thctx)
   else (
     alreadyImported := f :: !alreadyImported;
     let cmds,_ = parseFile f ctx in
-    let g (ctx,lst,store,threads) c =  
+    let g (ctx,lst,store,threads,thctx) c =  
       open_hvbox 0;
-      let results = process_command (ctx,lst,store,threads) c in
+      let results = process_command (ctx,lst,store,threads,thctx) c in
       print_flush();
       results
     in
-      List.fold_left g (ctx,lst,store,threads) cmds)
+      List.fold_left g (ctx,lst,store,threads,thctx) cmds)
 
-and process_command (ctx,lst,store,threads) cmd = match cmd with
+and process_command (ctx,lst,store,threads,thctx) cmd = match cmd with
     Import(f) -> 
-      process_file f (ctx,lst,store,threads)
+      process_file f (ctx,lst,store,threads,thctx)
   | Eval(fi,t) -> 
       let tyT = typeof ctx lst t in
-      let t',store,threads = eval ctx store threads t in
+      let t',store,threads,thctx = eval ctx store threads thctx t in
       printtm_ATerm true ctx t'; 
       print_break 1 2;
       pr ": ";
       printty ctx tyT;
       force_newline();
-      (ctx,lst,store,threads)
+      (ctx,lst,store,threads,thctx)
   | Bind(fi,x,bind) -> 
       let bind = checkbinding fi ctx lst bind in
-      let bind',store',threads' = evalbinding ctx store threads bind in
+      let bind',store',threads',thctx' = evalbinding ctx store threads thctx bind in
       pr x; pr " "; prbindingty ctx lst bind'; force_newline();
-      (addbinding ctx x bind',lst, (shiftstore 1 store'), threads')
+      (addbinding ctx x bind',lst, (shiftstore 1 store'), threads',thctx')
   
 let main () = 
   let inFile = parseArgs() in
-  let _ = process_file inFile (emptycontext, emptylockset, emptystore, emptythreads) in
+  let _ = process_file inFile (emptycontext, emptylockset, emptystore, emptythreads, emptythctx) in
   ()
 
 let () = set_max_boxes 1000

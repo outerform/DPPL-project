@@ -540,7 +540,7 @@ and printtm_PathTerm outer ctx t = match t with
 
 and printtm_ATerm outer ctx t = match t with
     TmVar(fi,x,n) ->
-      if ctxlength ctx >= n then
+      if ctxlength ctx = n then
         pr (index2name fi ctx x)
       else
         pr ("[bad index: " ^ (string_of_int x) ^ "/" ^ (string_of_int n)
